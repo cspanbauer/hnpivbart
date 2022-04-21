@@ -419,7 +419,7 @@ RcppExport SEXP cbhetnpiv(
          dalpha[j] = dpmS.getalpha();
          for(size_t k=0;k<n;k++) {
            dcovMean(k) += tmat[k][3]*tmat[k][2];
-           dcorMean(k) += tmat[k][3]*tmat[k][2])/(tmat[k][2]*sqrt(tmat[k][3]*tmat[k][3]+tmat[k][4]*tmat[k][4]));
+           dcorMean(k) += (tmat[k][3]*tmat[k][2])/(tmat[k][2]*sqrt(tmat[k][3]*tmat[k][3]+tmat[k][4]*tmat[k][4]));
            if(include_output==1){
              dsigma1(j,k) = tmat[k][2];
              dsigma2(j,k) = sqrt(tmat[k][3]*tmat[k][3] + tmat[k][4]*tmat[k][4]);
