@@ -148,53 +148,31 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <div id="overview" class="section level1">
 <h1>Overview</h1>
 <p>Package <tt>hnpivbart</tt> functions in the same way as other BART-based packages such as <tt>BART3</tt> or <tt>bartMachine</tt>. The user must specify the input training dataset as well as any test points on which to evaluate the estimated regression function. The software runs the BART algorithm and yields samples from the posterior distribution for the predictions on each of the training and test points. The posterior samples from any other unknowns in the model such as error variances are also estimated. There are four functions that can be called <tt>ivbart</tt> (linear global), <tt>hetivbart</tt> (linear heterogenous), <tt>npivbart</tt> (nonlinear global), and <tt>hetnpivbart</tt> (nonlinear heterogenous), the four models discussed in Spanbauer and Pan (20XX).</p>
-<p>For the instrumental variable case, that means specifying the instrument vector/matrix <tt>Z</tt>, the exposure vector <tt>T</tt>, the outcome vector <tt>Y</tt>, and the vector/matrix of other covariates <tt>X</tt>. The outputs will depend on the model specified. In all cases, the first stage is returned via element <tt>df1</tt> from the resulting BART model fit. The outputs, called <tt>df21</tt>, <tt>df22</tt>, and <tt>df2</tt>, otherwise vary depending on the functional form chosen for stage 2. These outputs are given in Table @ref(tab:foo). Note that <tt>hetnpivbart</tt> does not output <tt>df21</tt> or <tt>df22</tt> as these functions are not estimated separately.</p>
+<p>For the instrumental variable case, that means specifying the instrument vector/matrix <tt>Z</tt>, the exposure vector <tt>T</tt>, the outcome vector <tt>Y</tt>, and the vector/matrix of other covariates <tt>X</tt>. The outputs will depend on the model specified. In all cases, the first stage is returned via element <tt>df1</tt> from the resulting BART model fit. The outputs, called <tt>df21</tt>, <tt>df22</tt>, and <tt>df2</tt>, otherwise vary depending on the functional form chosen for stage 2. These outputs correspond to the functions <span class="math inline">\(f_{21}\)</span>, <span class="math inline">\(f_{22}\)</span> and <span class="math inline">\(f_2\)</span> as given in Table @ref(tab:foo). Note that <tt>ivbart</tt> <tt>hetnpivbart</tt> does not output <tt>df21</tt> or <tt>df22</tt> as these functions are not estimated separately.</p>
 <table>
-<caption>@ref(tab:foo) Your table caption.</caption>
-<colgroup>
-<col width="17%" />
-<col width="14%" />
-<col width="16%" />
-<col width="16%" />
-<col width="33%" />
-</colgroup>
+<caption>@ref(tab:foo) Different forms of function <span class="math inline">\(f_2\)</span></caption>
 <thead>
 <tr class="header">
 <th></th>
-<th><tt>df1</tt></th>
-<th><tt>df21</tt></th>
-<th><tt>df22</tt></th>
-<th><tt>df2</tt></th>
+<th align="right"><span class="math inline">\(f_2(t_i,\mathbf{x}_i)\)</span></th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><tt>ivbart</tt></td>
-<td><span class="math inline">\(f_1(\mathbf{z}_i)\)</span></td>
-<td><span class="math inline">\(\beta t_i\)</span></td>
-<td><span class="math inline">\(f_{22}(\mathbf{x}_i)\)</span></td>
-<td><span class="math inline">\(\beta t_i + f_{22}(\mathbf{x}_i)\)</span></td>
+<td>ivBART-g</td>
+<td align="right"><span class="math inline">\(\beta t_i + f_{21}(\mathbf{x}_i)\)</span></td>
 </tr>
 <tr class="even">
-<td><tt>hetivbart</tt></td>
-<td><span class="math inline">\(f_1(\mathbf{z}_i)\)</span></td>
-<td><span class="math inline">\(f_{21}(\mathbf{x}_i)\)</span></td>
-<td><span class="math inline">\(f_{22}(\mathbf{x}_i)\)</span></td>
-<td><span class="math inline">\(f_{21}(\mathbf{x}_i)t_i+f_{22}(\mathbf{x}_i)\)</span></td>
+<td>npivBART-g</td>
+<td align="right"><span class="math inline">\(f_{21}(t_i) + f_{22}(\mathbf{x}_i)\)</span></td>
 </tr>
 <tr class="odd">
-<td><tt>npivbart</tt></td>
-<td><span class="math inline">\(f_1(\mathbf{z}_i)\)</span></td>
-<td><span class="math inline">\(f_{21}(t_i)\)</span></td>
-<td><span class="math inline">\(f_{22}(\mathbf{x}_i)\)</span></td>
-<td><span class="math inline">\(f_{21}(t_i)+f_{22}(\mathbf{x}_i)\)</span></td>
+<td>ivBART-h</td>
+<td align="right"><span class="math inline">\(f_{21}(\mathbf{x}_i)t_i + f_{22}(\mathbf{x}_i)\)</span></td>
 </tr>
 <tr class="even">
-<td><tt>hetnpivbart</tt></td>
-<td><span class="math inline">\(f_1(\mathbf{z}_i)\)</span></td>
-<td></td>
-<td></td>
-<td><span class="math inline">\(f_{2}(t_i,\mathbf{x}_i)\)</span></td>
+<td>npivBART-h</td>
+<td align="right"><span class="math inline">\(f_2(t_i,\mathbf{x}_i)\)</span></td>
 </tr>
 </tbody>
 </table>

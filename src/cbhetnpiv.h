@@ -319,6 +319,8 @@ RcppExport SEXP cbhetnpiv(
    //output storage for DpMuSigma
    Rcpp::IntegerVector dnpart(nd);
    Rcpp::NumericVector dalpha(nd);
+   Rcpp::NumericVector dcovMean(n);
+   Rcpp::NumericVector dcorMean(n);
    //   Rcpp::NumericMatrix dclusters(nd,n);
    Rcpp::NumericMatrix dsigma1(1,1);  
    Rcpp::NumericMatrix dsigma2(1,1);
@@ -416,6 +418,8 @@ RcppExport SEXP cbhetnpiv(
          dnpart[j] = dpmS.npart();
          dalpha[j] = dpmS.getalpha();
          for(size_t k=0;k<n;k++) {
+           dcovMean(k) += tmat[k][3]*tmat[k][2];
+           dcorMean(k) += tmat[k][3]*tmat[k][2])/(tmat[k][2]*sqrt(tmat[k][3]*tmat[k][3]+tmat[k][4]*tmat[k][4]));
            if(include_output==1){
              dsigma1(j,k) = tmat[k][2];
              dsigma2(j,k) = sqrt(tmat[k][3]*tmat[k][3] + tmat[k][4]*tmat[k][4]);
@@ -450,6 +454,10 @@ RcppExport SEXP cbhetnpiv(
          }
       }
    }
+   for(size_t k=0;k<n;k++){
+     dcovMean(k) = (1./(double)nd)*dcovMean(k);
+     dcorMean(k) = (1./(double)nd)*dcorMean(k);
+   }
    int time2 = time(&tp);
    if(!quiet) Rprintf("time: %d\n",time2-time1);
 
@@ -475,6 +483,8 @@ RcppExport SEXP cbhetnpiv(
      ret["dfburn"] = dfburn;
      ret["dhburn"] = dhburn;
    }
+   ret["dcov.mean"] = dcovMean;
+   ret["dcor.mean"] = dcorMean;
    ret["df.test"] = dfp;
    ret["dh.test"] = dhp;
    ret["dnu"] = nu;
