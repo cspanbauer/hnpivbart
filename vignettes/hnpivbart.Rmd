@@ -1,4 +1,4 @@
----
+o---
 title: "Overview of Heterogenous Nonlinear IV w/ BART"
 output: rmarkdown::html_vignette
 vignette: >
@@ -37,11 +37,11 @@ set.seed(32687)
 ```
 
 ```{r simulation_setup}        
-n <- 800
-nd <- 120
-nb <- 100
-nb0 <- 100
-ke <- 1
+n <- 1000
+nd <- 1000
+nb <- 2500
+nb0 <- 1
+ke <- 5
 pZ <- 10
 
 sig. <- matrix(c(1,rep(0.7,2),1),nrow=2)
@@ -65,7 +65,7 @@ cols <- c("grey85","grey65","#FB9A99","#E31A1C","#A6CEE3","#1F78B4",
     
 ## Simulate Data; Global Linear
 
-First, the data is simulated according to the specifications in Spanbauer and Pan (20XX). The only difference is that normal random variates are used as the instruments instead of SNPs from gene FTO as in the article. This is done primarily for simplicity, but will not affect the results. We are using the global linear setting here so that $f_2(t_i,\mathbf{x}_i)=t_i+I(x_{i1}<0)$.
+First, the data is simulated according to the specifications in Spanbauer and Pan (20XX). The only difference is that normal random variates are used as the instruments instead of SNPs from gene FTO as in the article. This is done primarily for simplicity, but will not affect the results. We are using the global linear setting here so that $f_2(t_i,\mathbf{x}_i)=t_i+I(x_{i1}\ge 0)$.
     
 ```{r simulate_data_GL}
 Y. <- T. + ifelse(X.[,1]<0,0,1) + chl.[1,2]*stdNorm[,1] + chl.[2,2]*stdNorm[,2]
@@ -117,7 +117,7 @@ colnames(dat) <- c('Y','T',paste0('Z',1:pZ),paste0('X',1:10))
     
 ## Simulate Data; Global Nonlinear
 
-Now the line is replaced with the cosine function so that $f_2(t_i,\mathbf{x}_i)=\cos(t_i)+I(x_{i1}<0)$.
+Now the line is replaced with the cosine function so that $f_2(t_i,\mathbf{x}_i)=\cos(t_i)+I(x_{i1}\ge 0)$.
     
 ```{r simulate_data_GN}
 Y. <- cos(T.) + ifelse(X.[,1]<0,0,1) + chl.[1,2]*stdNorm[,1] + chl.[2,2]*stdNorm[,2]
@@ -127,6 +127,7 @@ dat <- data.frame(cbind(Y.,T.,Z.,X.))
 colnames(dat) <- c('Y','T',paste0('Z',1:pZ),paste0('X',1:10))
 ```
 
+    
 ## Run npivBART-g
 
 ```{r npivbartg}
@@ -161,7 +162,7 @@ colnames(dat) <- c('Y','T',paste0('Z',1:pZ),paste0('X',1:10))
 
 ## Simulate Data; Heterogenous Linear
 
-The original line is now interacting with $\mathbf{x}_{1i}$ so that $f_2(t_i,\mathbf{x}_i)=t_iI(x_{i1}<0)$.
+The original line is now interacting with $\mathbf{x}_{1i}$ so that $f_2(t_i,\mathbf{x}_i)=t_iI(x_{i1}\ge 0)$.
     
 ```{r simulate_data_HL}
 Y. <- T. * ifelse(X.[,1]<0,0,1) + chl.[1,2]*stdNorm[,1] + chl.[2,2]*stdNorm[,2]
@@ -191,6 +192,7 @@ colnames(dat) <- c('Y','T',paste0('Z',1:pZ),paste0('X',1:10))
                           hetivbNODPLS[[2]]$df2.test,
                           hetivbNODPLS[[3]]$df2.test),
                     1,by,rep(1:10,nrow(dat)),mean))
+    print(colMeans(hetivbNODP.pdf))
     print(dim(hetivbNODP.pdf))
     T.bigGrid <- seq(-3,3,length.out=100)
     par(mfrow=c(2,1),mar=rep(1,4))
@@ -205,7 +207,7 @@ colnames(dat) <- c('Y','T',paste0('Z',1:pZ),paste0('X',1:10))
 
 # Simulate Data; Heterogenous Nonlinear
 
-The nonlinear cosine function is now multiplicative with $\mathbf{x}_{1i}$ so that $f_2(t_i,\mathbf{x}_i)=t_iI(x_{i1}<0)$.        
+The nonlinear cosine function is now multiplicative with $\mathbf{x}_{1i}$ so that $f_2(t_i,\mathbf{x}_i)=t_iI(x_{i1}\ge 0)$.        
     
 ```{r simulate_data_HN}
 Y. <- cos(T.) * ifelse(X.[,1]<0,0,1) + chl.[1,2]*stdNorm[,1] + chl.[2,2]*stdNorm[,2]

@@ -165,10 +165,6 @@ RcppExport SEXP cbiv(
 
    size_t n = nT;
 
-   //Zero vector for first BART model
-   Rcpp::NumericVector zeroV(2*n);
-   double *zeroVp = &zeroV[0];
-
    // doh1
    bool doh1 = (nx!=0);
    if(doh1) burnh1=1;
@@ -228,11 +224,11 @@ RcppExport SEXP cbiv(
          z2[start+j] = z[i*pz+j];
       }
    }
-   heterbart bmf(m1,1);
+   heterbart<double> bmf(m1);
    bmf.setprior(alpha,mybeta,tauf);
    double *ytempf = new double[n*2];  //y for h bart
    double *svecf = new double[n*2];   // sigma_i for h bart
-   bmf.setdata(pz,n*2,z2,ytempf,zeroVp,nc);
+   bmf.setdata(pz,n*2,z2,ytempf,nc);
    Rcpp::NumericMatrix dfburn(1,1); //h draws on train
    if(include_output==1) dfburn(burnf,n);
    Dp::dv fhatb(n,0.0);
@@ -271,11 +267,11 @@ RcppExport SEXP cbiv(
    //-------------------------------------------------
    // bart h1 setup
    //--------------------------------------------------
-   heterbart bmh1(m2,1);
+   heterbart<double> bmh1(m2);
    bmh1.setprior(alpha,mybeta,tauh);
    double *ytemp = new double[n];  //y for h bart
    double *svec = new double[n];   // sigma_i for h bart
-   bmh1.setdata(px,n,x,ytemp,zeroVp,nc);
+   bmh1.setdata(px,n,x,ytemp,nc);
       
    //h1 burn-in
    Rcpp::NumericMatrix dh1burn(1,1); //h1 draws on train
@@ -454,9 +450,9 @@ RcppExport SEXP cbiv(
       
       // Predictions     
       if(doprdx)
-        bmh1.predict(pxp,nxp,xp,T,h1p);      
+        bmh1.predict(pxp,nxp,xp,h1p);      
       if(doprdz)
-        bmf.predict(pzp,nzp,zp,zeroVp,fp);
+        bmf.predict(pzp,nzp,zp,fp);
       
       // Record posterior samples
       if(i >= burn) {

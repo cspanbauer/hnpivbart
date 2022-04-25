@@ -19,6 +19,11 @@ using std::cout;
 #include <bart_src/bd.h>
 #include <bart_src/bart.h>
 #include <bart_src/heterbart.h>
+//#include <bart_src/semibart.h>
+//#include <bart_src/semibd.h>
+//#include <bart_src/semibartfuns.h>
+//#include <bart_src/hetersemibart.h>
+
 
 #include <bart_src/Dp.h>
 #include <bart_src/DpMuSigma.h>
@@ -49,5 +54,4 @@ double bvnorm(double x, double y, double mux, double muy, double sigx, double si
   return -log(2.)-log(PI)-log(sigx)-log(sigy)-0.5*log(1-rho*rho)-(x-mux)*(x-mux)/(T1MR*sigx*sigx)+2*rho*(x-mux)*(y-muy)/(T1MR*sigx*sigy)-(y-muy)*(y-muy)/(T1MR*sigy*sigy);
 }
 
-#define PI 3.141592653589793238462643383280
 #define LTPI 1.837877066409345483560659472811

@@ -6,6 +6,7 @@
 #include <cmath>
 #include <cstddef>
 #include <vector>
+#include "rn.h"
 
 //--------------------------------------------------
 //xinfo xi, then xi[v][c] is the c^{th} cutpoint for variable v.
@@ -14,43 +15,30 @@ typedef std::vector<double> vec_d; //double vector
 typedef std::vector<vec_d> xinfo; //vector of vectors, will be split rules
 
 //--------------------------------------------------
-//info contained in a node, used by input operator
-struct node_info {
-   std::size_t id; //node id
-   std::size_t v;  //variable
-   std::size_t c;  //cut point
-  vec_d beta;   //beta
-};
-
-//--------------------------------------------------
+template <typename T>
 class tree {
 public:
-   //friends--------------------
-   friend std::istream& operator>>(std::istream&, tree&);
    //typedefs--------------------
-   typedef tree* tree_p;
-   typedef const tree* tree_cp;
-   typedef std::vector<tree_p> npv; 
-   typedef std::vector<tree_cp> cnpv;
+   typedef tree<T>* tree_p;
+   typedef const tree<T>* tree_cp;
+  typedef std::vector<tree_p> npv; 
+  typedef std::vector<tree_cp> cnpv;
    //contructors,destructors--------------------
-  tree(): beta(1,0.0),v(0),c(0),p(0),l(0),r(0) {}
-  tree(size_t size_beta): beta(size_beta,0.0),v(0),c(0),p(0),l(0),r(0) {}
-  tree(const tree& n, size_t size_beta): beta(size_beta,0.0),v(0),c(0),p(0),l(0),r(0) {cp(this,&n);}
-   tree(vec_d ibeta): beta(ibeta),v(0),c(0),p(0),l(0),r(0) {}
+   tree(): v(0),c(0),p(0),l(0),r(0) {}
+   tree(const tree& n): v(0),c(0),p(0),l(0),r(0) {cp(this,&n);}
+   tree(T itheta): theta(itheta),v(0),c(0),p(0),l(0),r(0) {}
    void tonull(); //like a "clear", null tree has just one node
    ~tree() {tonull();}
    //operators----------
    tree& operator=(const tree&);
    //interface--------------------
    //set
-  void setbeta(size_t i, double val) {this->beta[i]=val;}
-  void setbeta(vec_d beta) {this->beta=beta;}
-  void setbetasize(size_t betasize){this->beta.resize(betasize);}
-  void setv(size_t v) {this->v = v;}
-  void setc(size_t c) {this->c = c;}
+   void settheta(T _theta) {this->theta=_theta;}
+  //  void settheta(std::vector<double> _theta) {this->theta=_theta;}//for(size_t k=0;k<_theta.size();k++) this->theta[k]=_theta[k];}
+   void setv(size_t v) {this->v = v;}
+   void setc(size_t c) {this->c = c;}
    //get
-  vec_d getbeta() const {return beta;}
-   double getbeta(size_t i) const {return beta[i];}
+   T gettheta() const {return theta;}
    size_t getv() const {return v;}
    size_t getc() const {return c;}
    tree_p getp() {return p;}  
@@ -62,11 +50,11 @@ public:
    size_t treesize(); //number of nodes in tree
    size_t nnogs();    //number of nog nodes (no grandchildren nodes)
    size_t nbots();    //number of bottom nodes
-   bool birth(size_t nid, size_t v, size_t c, vec_d thetal, vec_d thetar);
-   bool death(size_t nid, vec_d theta);
-   void birthp(tree_p np,size_t v, size_t c, vec_d thetal, vec_d thetar);
-  void deathp(tree_p nb, vec_d theta);
-   void getbots(npv& bv);         //get bottom nodes
+   bool birth(size_t nid, size_t v, size_t c, T thetal, T thetar);
+   bool death(size_t nid, T theta);
+   void birthp(tree_p np,size_t v, size_t c, T thetal, T thetar);
+   void deathp(tree_p nb, T theta);
+  void getbots(npv& bv);         //get bottom nodes
    void getnogs(npv& nv);         //get nog nodes (no granchildren)
    void getnodes(npv& v);         //get vector of all nodes
    void getnodes(cnpv& v) const;  //get vector of all nodes (const)
@@ -77,9 +65,8 @@ public:
    size_t depth();  //depth of a node
    char ntype(); //node type t:top, b:bot, n:no grandchildren i:interior (t can be b)
    bool isnog();
-  size_t getbadcut(size_t v);
 private:
-  vec_d beta; //multivariate double parameter
+   T theta; //template to allow multiple types
    //rule: left if x[v] < xinfo[v][c]
    size_t v;
    size_t c;
@@ -90,24 +77,22 @@ private:
    //utiity functions
    void cp(tree_p n,  tree_cp o); //copy tree
 };
-std::istream& operator>>(std::istream&, tree&);
-std::ostream& operator<<(std::ostream&, const tree&);
-
 
 #include <string>
 #include <map>
 //#include "tree.h"
-
 //--------------------
 // node id
-size_t tree::nid() const 
+template <typename T>
+size_t tree<T>::nid() const 
 {
    if(!p) return 1; //if you don't have a parent, you are the top
    if(this==p->l) return 2*(p->nid()); //if you are a left child
    else return 2*(p->nid())+1; //else you are a right child
 }
 //--------------------
-tree::tree_p tree::getptr(size_t nid)
+template <typename T>
+typename tree<T>::tree_p tree<T>::getptr(size_t nid)
 {
    if(this->nid() == nid) return this; //found it
    if(l==0) return 0; //no children, did not find it
@@ -119,7 +104,8 @@ tree::tree_p tree::getptr(size_t nid)
 }
 //--------------------
 //add children to  bot node nid
-bool tree::birth(size_t nid,size_t v, size_t c, vec_d betal, vec_d betar)
+template <typename T>
+bool tree<T>::birth(size_t nid,size_t v, size_t c, T thetal, T thetar)
 {
    tree_p np = getptr(nid);
    if(np==0) {
@@ -132,10 +118,10 @@ bool tree::birth(size_t nid,size_t v, size_t c, vec_d betal, vec_d betar)
    }
 
    //add children to bottom node np
-   tree_p l = new tree(betal.size());
-   l->beta=betal;
-   tree_p r = new tree(betar.size());
-   r->beta=betar;
+   tree_p l = new tree<T>;
+   l->theta=thetal;
+   tree_p r = new tree<T>;
+   r->theta=thetar;
    np->l=l;
    np->r=r;
    np->v = v; np->c=c;
@@ -146,21 +132,24 @@ bool tree::birth(size_t nid,size_t v, size_t c, vec_d betal, vec_d betar)
 }
 //--------------------
 //depth of node
-size_t tree::depth()
+template <typename T>
+size_t tree<T>::depth()
 {
    if(!p) return 0; //no parents
    else return (1+p->depth());
 }
 //--------------------
 //tree size
-size_t tree::treesize()
+template <typename T>
+size_t tree<T>::treesize()
 {
    if(l==0) return 1;  //if bottom node, tree size is 1
    else return (1+l->treesize()+r->treesize());
 }
 //--------------------
 //node type
-char tree::ntype()
+template <typename T>
+char tree<T>::ntype()
 {
    //t:top, b:bottom, n:no grandchildren, i:internal
    if(!p) return 't';
@@ -170,7 +159,8 @@ char tree::ntype()
 }
 //--------------------
 //print out tree(pc=true) or node(pc=false) information
-void tree::pr(bool pc) 
+template <typename T>
+void tree<T>::pr(bool pc) 
 {
    size_t d = depth();
    size_t id = nid();
@@ -185,9 +175,7 @@ void tree::pr(bool pc)
       cout << "tree size: " << treesize() << std::endl;
    cout << pad << "(id,parent): " << id << sp << pid;
    cout << sp << "(v,c): " << v << sp << c;
-   for(size_t j=0;j<beta.size();j++){
-     cout << sp << "beta[" << j << "]: " << beta[j] << std::endl;
-   }
+   // cout << sp << "theta: " << theta;
    cout << sp << "type: " << ntype();
    cout << sp << "depth: " << depth();
    cout << sp << "pointer: " << this << std::endl;
@@ -201,7 +189,8 @@ void tree::pr(bool pc)
 }
 //--------------------
 //kill children of  nog node nid
-bool tree::death(size_t nid, vec_d beta)
+template <typename T>
+bool tree<T>::death(size_t nid, T theta)
 {
    tree_p nb = getptr(nid);
    if(nb==0) {
@@ -215,7 +204,7 @@ bool tree::death(size_t nid, vec_d beta)
       nb->r=0;
       nb->v=0;
       nb->c=0;
-      nb->beta=beta;
+      nb->theta=theta;
       return true;
    } else {
       cout << "error in death, node is not a nog node\n";
@@ -224,7 +213,8 @@ bool tree::death(size_t nid, vec_d beta)
 }
 //--------------------
 //is the node a nog node
-bool tree::isnog() 
+template <typename T>
+bool tree<T>::isnog() 
 {
    bool isnog=true;
    if(l) {
@@ -235,7 +225,8 @@ bool tree::isnog()
    return isnog;
 }
 //--------------------
-size_t tree::nnogs() 
+template <typename T>
+size_t tree<T>::nnogs() 
 {
    if(!l) return 0; //bottom node
    if(l->l || r->l) { //not a nog
@@ -245,7 +236,8 @@ size_t tree::nnogs()
    }
 }
 //--------------------
-size_t tree::nbots() 
+template <typename T>
+size_t tree<T>::nbots() 
 {
    if(l==0) { //if a bottom node
       return 1;
@@ -255,7 +247,8 @@ size_t tree::nbots()
 }
 //--------------------
 //get bottom nodes
-void tree::getbots(npv& bv)
+template <typename T>
+void tree<T>::getbots(npv& bv)
 {
    if(l) { //have children
       l->getbots(bv);
@@ -266,7 +259,8 @@ void tree::getbots(npv& bv)
 }
 //--------------------
 //get nog nodes
-void tree::getnogs(npv& nv)
+template <typename T>
+void tree<T>::getnogs(npv& nv)
 {
    if(l) { //have children
       if((l->l) || (r->l)) {  //have grandchildren
@@ -279,15 +273,8 @@ void tree::getnogs(npv& nv)
 }
 //--------------------
 //get all nodes
-void tree::getnodes(npv& v)
-{
-   v.push_back(this);
-   if(l) {
-      l->getnodes(v);
-      r->getnodes(v);
-   }
-}
-void tree::getnodes(cnpv& v)  const
+template <typename T>
+void tree<T>::getnodes(npv& v)
 {
    v.push_back(this);
    if(l) {
@@ -296,7 +283,18 @@ void tree::getnodes(cnpv& v)  const
    }
 }
 //--------------------
-tree::tree_p tree::bn(double *x,xinfo& xi)
+template <typename T>
+void tree<T>::getnodes(cnpv& v)  const
+{
+   v.push_back(this);
+   if(l) {
+      l->getnodes(v);
+      r->getnodes(v);
+   }
+}
+//--------------------
+template <typename T>
+typename tree<T>::tree_p tree<T>::bn(double *x, xinfo& xi)
 {
    if(l==0) return this; //no children
    if(x[v] < xi[v][c]) {
@@ -307,7 +305,8 @@ tree::tree_p tree::bn(double *x,xinfo& xi)
 }
 //--------------------
 //find region for a given variable
-void tree::rg(size_t v, int* L, int* U)
+template <typename T>
+void tree<T>::rg(size_t v, int* L, int* U)
 {
    if(this->p==0)  {
       return;
@@ -326,7 +325,8 @@ void tree::rg(size_t v, int* L, int* U)
 }
 //--------------------
 //cut back to one node
-void tree::tonull()
+template <>
+void tree<double>::tonull()
 {
    size_t ts = treesize();
    //loop invariant: ts>=1
@@ -341,13 +341,37 @@ void tree::tonull()
       }
       ts = treesize(); //make invariant true
    }
-   std::fill(beta.begin(),beta.end(),0.0);
+   theta=0.0;
    v=0;c=0;
    p=0;l=0;r=0;
 }
 //--------------------
+//cut back to one node
+template <>
+void tree<std::vector<double>>::tonull()
+{
+   size_t ts = treesize();
+   //loop invariant: ts>=1
+   while(ts>1) { //if false ts=1
+      npv nv;
+      getnogs(nv);
+      for(size_t i=0;i<nv.size();i++) {
+         delete nv[i]->l;
+         delete nv[i]->r;
+         nv[i]->l=0;
+         nv[i]->r=0;
+      }
+      ts = treesize(); //make invariant true
+   }
+   std::fill(theta.begin(),theta.end(),0.0);
+   v=0;c=0;
+   p=0;l=0;r=0;
+}
+
+//--------------------
 //copy tree tree o to tree n
-void tree::cp(tree_p n, tree_cp o)
+template <typename T>
+void tree<T>::cp(tree_p n, tree_cp o)
 //assume n has no children (so we don't have to kill them)
 //recursion down
 {
@@ -356,22 +380,23 @@ void tree::cp(tree_p n, tree_cp o)
       return;
    }
 
-   n->beta = o->beta;
+   n->theta = o->theta;
    n->v = o->v;
    n->c = o->c;
 
    if(o->l) { //if o has children
-     n->l = new tree(n->beta.size());
+      n->l = new tree<T>;
       (n->l)->p = n;
       cp(n->l,o->l);
-      n->r = new tree(n->beta.size());
+      n->r = new tree<T>;
       (n->r)->p = n;
       cp(n->r,o->r);
    }
 }
 //--------------------------------------------------
 //operators
-tree& tree::operator=(const tree& rhs)
+template <typename T>
+tree<T>& tree<T>::operator=(const tree<T>& rhs)
 {
    if(&rhs != this) {
       tonull(); //kill left hand side (this)
@@ -379,79 +404,15 @@ tree& tree::operator=(const tree& rhs)
    }
    return *this;
 }
-//--------------------------------------------------
-//functions
-std::ostream& operator<<(std::ostream& os, const tree& t)
-{
-   tree::cnpv nds;
-   t.getnodes(nds);
-   os << nds.size() << std::endl;
-   for(size_t i=0;i<nds.size();i++) {
-      os << nds[i]->nid() << " ";
-      os << nds[i]->getv() << " ";
-      os << nds[i]->getc() << " ";
-      for(size_t j=0;j<nds[i]->getbeta().size();j++){
-        os << nds[i]->getbeta(i) << std::endl;
-      }
-   }
-   return os;
-}
-std::istream& operator>>(std::istream& is, tree& t)
-{
-   size_t tid,pid; //tid: id of current node, pid: parent's id
-   std::map<size_t,tree::tree_p> pts;  //pointers to nodes indexed by node id
-   size_t nn; //number of nodes
-
-   t.tonull(); // obliterate old tree (if there)
-
-   //read number of nodes----------
-   is >> nn;
-   if(!is) {
-      //cout << ">> error: unable to read number of nodes" << endl;
-      return is;
-   }
-
-   //read in vector of node information----------
-   std::vector<node_info> nv(nn);
-   for(size_t i=0;i!=nn;i++) {
-     is >> nv[i].id >> nv[i].v >> nv[i].c;
-     for(size_t j=0;j<nv[i].beta.size();j++){
-       is >> nv[i].beta[i];
-     }
-     if(!is) {
-       //cout << ">> error: unable to read node info, on node  " << i+1 << endl;
-       return is;
-     }
-   }
-   //first node has to be the top one
-   pts[1] = &t; //careful! this is not the first pts, it is pointer of id 1.
-   t.setv(nv[0].v); t.setc(nv[0].c); t.setbeta(nv[0].beta);
-   t.p=0;
-
-   //now loop through the rest of the nodes knowing parent is already there.
-   for(size_t i=1;i!=nv.size();i++) {
-     tree::tree_p np = new tree(nv[i].beta.size());
-      np->v = nv[i].v; np->c=nv[i].c; np->beta=nv[i].beta;
-      tid = nv[i].id;
-      pts[tid] = np;
-      pid = tid/2;
-      // set pointers
-      if(tid % 2 == 0) { //left child has even id
-         pts[pid]->l = np;
-      } else {
-         pts[pid]->r = np;
-      }
-      np->p = pts[pid];
-   }
-   return is;}
 //--------------------
 //add children to bot node *np
-void tree::birthp(tree_p np,size_t v, size_t c, vec_d betal, vec_d betar)
+template <typename T>
+void tree<T>::birthp(tree_p np,size_t v, size_t c, T thetal, T thetar)
 {
-  tree_p l = new tree(np->beta.size());
-   l->beta=betal;
-   tree_p r = new tree(np->beta.size());
-   r->beta=betar;
+   tree_p l = new tree<T>;
+   l->theta=thetal;
+   tree_p r = new tree<T>;
+   r->theta=thetar;
    np->l=l;
    np->r=r;
    np->v = v; np->c=c;
@@ -460,7 +421,8 @@ void tree::birthp(tree_p np,size_t v, size_t c, vec_d betal, vec_d betar)
 }
 //--------------------
 //kill children of  nog node *nb
-void tree::deathp(tree_p nb, vec_d beta)
+template <typename T>
+void tree<T>::deathp(tree_p nb, T theta)
 {
    delete nb->l;
    delete nb->r;
@@ -468,16 +430,7 @@ void tree::deathp(tree_p nb, vec_d beta)
    nb->r=0;
    nb->v=0;
    nb->c=0;
-   nb->beta=beta;
+   nb->theta=theta;
 }
-
-size_t tree::getbadcut(size_t v){
-  tree_p par=this->getp();
-  if(par->getv()==v)
-    return par->getc();
-  else
-    return par->getbadcut(v);
-}
-
 
 #endif

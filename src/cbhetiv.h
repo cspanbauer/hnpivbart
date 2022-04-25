@@ -26,15 +26,15 @@ RcppExport SEXP cbhetiv(
    SEXP _Y,
    SEXP _burn,
    SEXP _nd,
-   SEXP _burnf,
-   SEXP _burnh,
+   SEXP _burnf1,
+   SEXP _burnf2,
    SEXP _m1,
    SEXP _m2,
    SEXP _nc,
    SEXP _power,
    SEXP _base,
-   SEXP _tauf,
-   SEXP _tauh,
+   SEXP _tauf1,
+   SEXP _tauf2,
    SEXP _doDP,
    SEXP _v,
    SEXP _nu,
@@ -43,15 +43,15 @@ RcppExport SEXP cbhetiv(
    SEXP _priag,
    SEXP _centermeans,
    SEXP _include_output,
-   SEXP _fs,
-   SEXP _hs,
+   SEXP _f1s,
+   SEXP _f2s,
    SEXP _mTs,
    SEXP _mYs,
    SEXP _sTs,
    SEXP _gammas,
    SEXP _sYs,
-   SEXP _nullf,
-   SEXP _nullh,
+   SEXP _nullf1,
+   SEXP _nullf2,
    SEXP _printevery,
    SEXP _quiet
 )
@@ -100,8 +100,8 @@ RcppExport SEXP cbhetiv(
    // burn, nd
    size_t burn = Rcpp::as<size_t>(_burn);
    size_t nd = Rcpp::as<size_t>(_nd);
-   size_t burnf = Rcpp::as<size_t>(_burnf);
-   size_t burnh = Rcpp::as<size_t>(_burnh);
+   size_t burnf1 = Rcpp::as<size_t>(_burnf1);
+   size_t burnf2 = Rcpp::as<size_t>(_burnf2);
 
    //bart prior
    size_t m1 = Rcpp::as<size_t>(_m1);
@@ -109,8 +109,8 @@ RcppExport SEXP cbhetiv(
    size_t nc = Rcpp::as<size_t>(_nc);
    double mybeta = Rcpp::as<double>(_power);
    double alpha = Rcpp::as<double>(_base);
-   double tauf = Rcpp::as<double>(_tauf);
-   double tauh = Rcpp::as<double>(_tauh);
+   double tauf1 = Rcpp::as<double>(_tauf1);
+   double tauf2 = Rcpp::as<double>(_tauf2);
 
    //base prior -------------
    double v = Rcpp::as<double>(_v);
@@ -136,10 +136,10 @@ RcppExport SEXP cbhetiv(
 
    //starting values
    //fs,hs
-   Rcpp::NumericVector fsv(_fs);
-   double *fs = &fsv[0];
-   Rcpp::NumericVector hsv(_hs);
-   double *hs = &hsv[0];
+   Rcpp::NumericVector f1sv(_f1s);
+   double *f1s = &f1sv[0];
+   Rcpp::NumericVector f2sv(_f2s);
+   double *f2s = &f2sv[0];
 
    double mTs = Rcpp::as<double>(_mTs);
    double mYs = Rcpp::as<double>(_mYs);
@@ -147,18 +147,14 @@ RcppExport SEXP cbhetiv(
    double gammas = Rcpp::as<double>(_gammas);
    double sYs = Rcpp::as<double>(_sYs);
 
-   bool nullf = Rcpp::as<bool>(_nullf);
-   bool nullh = Rcpp::as<bool>(_nullh);
+   bool nullf1 = Rcpp::as<bool>(_nullf1);
+   bool nullf2 = Rcpp::as<bool>(_nullf2);
    
    //other
    size_t printevery = Rcpp::as<size_t>(_printevery);
    bool quiet = Rcpp::as<bool>(_quiet);
    
    size_t n = nT;
-
-   //Zero vector for first BART model
-   Rcpp::NumericVector zeroV(2*n);
-   double *zeroVp = &zeroV[0];
 
    if(!quiet){
      Rprintf("*****************************************************************\n");
@@ -170,11 +166,11 @@ RcppExport SEXP cbhetiv(
    //--------------------------------------------------
    // print args
    if(!quiet){
-     Rprintf("***burn, nd, burnf, burnh: %ld, %ld, %ld\n",burn,nd,burnf,burnh);
+     Rprintf("***burn, nd, burnf1, burnf2: %ld, %ld, %ld\n",burn,nd,burnf1,burnf2);
 
      Rprintf("*** Prior:\n");
      Rprintf("m1 (num trees stage 1), m2 (num trees stage 2), nc (num cut points), %ld, %ld, %ld\n",m1,m2,nc);
-     Rprintf("****power, base, tauf, tauh: %lf, %lf, %lf, %lf\n",mybeta,alpha,tauf,tauh);
+     Rprintf("****power, base, tauf1, tauf2: %lf, %lf, %lf, %lf\n",mybeta,alpha,tauf1,tauf2);
      Rprintf("v: %lf\n",v);
      Rprintf("nu: %lf\n",nu);
      Rprintf("a: %lf\n",a);
@@ -191,8 +187,8 @@ RcppExport SEXP cbhetiv(
      Rprintf("first and last Y: %lf, %lf\n",Y[0],Y[nY-1]);
      
      Rprintf("*** starting values, n is: %ld\n",n);
-     Rprintf("\t first and last fs: %lf, %lf\n",fs[0],fs[n-1]);
-     Rprintf("\t first and last hs: %lf, %lf\n",hs[0],hs[n-1]);
+     Rprintf("\t first and last fs: %lf, %lf\n",f1s[0],f1s[n-1]);
+     Rprintf("\t first and last hs: %lf, %lf\n",f2s[0],f2s[n-1]);
      Rprintf(" starting for mT, mY, sT, gamma, sY: %lf, %lf, %lf, %lf, %lf\n",mTs,mYs,sTs,gammas,sYs);
      
      Rprintf("***other\n");
@@ -216,84 +212,79 @@ RcppExport SEXP cbhetiv(
          z2[start+j] = z[i*pz+j];
       }
    }
-   heterbart bmf(m1,1);
-   bmf.setprior(alpha,mybeta,tauf);
-   double *ytempf = new double[n*2];  //y for h bart
-   double *svecf = new double[n*2];   // sigma_i for h bart
-   double *txf = new double[n*2];
-   for(size_t i=0;i<(2*n);i++) txf[i]=0.0;
-   bmf.setdata(pz,n*2,z2,ytempf,zeroVp,nc);
-   Rcpp::NumericMatrix dfburn(1,1);   //h draws on train
-   if(include_output==1) dfburn(burnf,n);
+   heterbart<double> bmf1(m1);
+   bmf1.setprior(alpha,mybeta,tauf1);
+   double *ytempf1 = new double[n*2];  //y for h bart
+   double *svecf1 = new double[n*2];   // sigma_i for h bart
+   bmf1.setdata(pz,n*2,z2,ytempf1,nc);
+   Rcpp::NumericMatrix df1burn(1,1);   //h draws on train
+   if(include_output==1) df1burn(burnf1,n);
    Dp::dv fhatb(n,0.0);
-   if(!nullf){
-     if(burnf) {
+   if(!nullf1){
+     if(burnf1) {
        for(size_t i=0; i<n; i++) {
-         ytempf[2*i] = T[i] - mTs;
-         svecf[2*i] = sTs;
-         ytempf[2*i+1] = T[i] - mTs;
-         svecf[2*i+1] = sTs;
+         ytempf1[2*i] = T[i] - mTs;
+         svecf1[2*i] = sTs;
+         ytempf1[2*i+1] = T[i] - mTs;
+         svecf1[2*i+1] = sTs;
        }
-       for(size_t i=0;i<burnf;i++) {
-         if(i%printevery==0&!quiet) Rprintf("burnf: done %d (out of %d)\n",i,burnf);
-         bmf.draw(svecf,gen);
-         if(include_output==1) {for(size_t j=0;j<n;j++) dfburn(i,j) = bmf.f(2*j);}
-         for(size_t j=0;j<n;j++) fhatb[j] = fhatb[j] + bmf.f(2*j);
+       for(size_t i=0;i<burnf1;i++) {
+         if(i%printevery==0&!quiet) Rprintf("burnf1: done %d (out of %d)\n",i,burnf1);
+         bmf1.draw(svecf1,gen);
+         if(include_output==1) {for(size_t j=0;j<n;j++) df1burn(i,j) = bmf1.f(2*j);}
+         for(size_t j=0;j<n;j++) fhatb[j] = fhatb[j] + bmf1.f(2*j);
        }
-       for(size_t j=0;j<n;j++) fhatb[j] = fhatb[j]/burnf;
+       for(size_t j=0;j<n;j++) fhatb[j] = fhatb[j]/burnf1;
      }
    }
-   // bmf ouput storage
-   Rcpp::NumericMatrix df(1,1); //f draws on train
-   if(include_output==1) df(nd,n);
+   // bmf1 ouput storage
+   Rcpp::NumericMatrix df1(1,1); //f draws on train
+   if(include_output==1) df1(nd,n);
 
    //-------------------------------------------------
    //-------------------------------------------------
-   // bart h setup
+   // bart f2 setup
    //--------------------------------------------------
-   heterbart bmh(m2,2);
-   bmh.setprior(alpha,mybeta,tauh);
-   double *ytemp = new double[n];  //y for h bart
-   double *svec = new double[n];   // sigma_i for h bart
-   bmh.setdata(px,n,x,ytemp,T,nc);
-
+   heterbart<std::vector<double>> bmf2(m2);
+   bmf2.setprior(alpha,mybeta,tauf2);
+   double *ytempf2 = new double[n];  //y for h bart
+   double *svecf2 = new double[n];   // sigma_i for h bart
+   bmf2.setdata(px,n,x,ytempf2,T,nc);
 
    //h burn-in   
-   Rcpp::NumericMatrix dhburn(1,1); //h draws on train
-   if(include_output==1) dhburn(burnh,n);
+   Rcpp::NumericMatrix df2burn(1,1); //h draws on train
+   if(include_output==1) df2burn(burnf2,n);
    double ZZ1=0.0;
-   if(!nullh){
-     for(size_t i=0;i<burnh;i++) {
-       if(i%printevery==0&!quiet) Rprintf("burnh: done %d (out of %d)\n",i,burnh);
+   if(!nullf2){
+     for(size_t i=0;i<burnf2;i++) {
+       if(i%printevery==0&!quiet) Rprintf("burnf2: done %d (out of %d)\n",i,burnf2);
 
-       // h conditional -----------------------------------
+       // f2 conditional -----------------------------------
        // update ----- 
        for(size_t j=0;j<n;j++) {
-         ZZ1 = (T[j] - mTs - bmf.f(2*j))/sTs;
-         ytemp[j] = Y[j] - mYs - hs[j] - gammas * ZZ1;
-         svec[j] = sYs; 
+         ytempf2[j] = Y[j] - mYs - f2s[j] - gammas * ZZ1;
+         svecf2[j] = sYs; 
        }
       //draw -----
-       bmh.draw(svec,gen);
-
+       bmf2.draw(svecf2,gen);
        if(include_output==1){
          for(size_t j=0;j<n;j++) {
-           dhburn(i,j) = bmh.f(j);
+           df2burn(i,j) = bmf2.f(j);
          }
        }
      }
    }
 
    
-   Rcpp::NumericMatrix dbeta0(1,1);
-   Rcpp::NumericMatrix dbeta1(1,1);
+   Rcpp::NumericMatrix df22(1,1);
+   Rcpp::NumericMatrix df21(1,1);
    if(include_output==1){
-     dbeta0(nd,n);
-     dbeta1(nd,n);
+     df22(nd,n);
+     df21(nd,n);
    }
-   Rcpp::NumericMatrix dbeta0p(nd,nxp);
-   Rcpp::NumericMatrix dbeta1p(nd,nxp);
-   Rcpp::NumericMatrix dfp(nd,nzp);
+   Rcpp::NumericMatrix df21p(nd,nxp);
+   Rcpp::NumericMatrix df22p(nd,nxp);
+   Rcpp::NumericMatrix df1p(nd,nzp);
 
 
    //--------------------------------------------------
@@ -312,8 +303,8 @@ RcppExport SEXP cbhetiv(
    double *yS = new double[2*n];
    //intialize using starting values
    for(size_t i=0;i<n;i++) {
-      yS[2*i] = T[i] - fs[i];
-      yS[2*i+1] = Y[i] - hs[i];
+      yS[2*i] = T[i] - f1s[i];
+      yS[2*i+1] = Y[i] - f2s[i];
    }
    
    DpMuSigma dpmS(n,itheta,doDP);
@@ -348,15 +339,15 @@ RcppExport SEXP cbhetiv(
    bool doprdz = pzp>0;
    bool doprdx = pxp>0;
 
-   double *fp = 0;
-   double *beta0p = 0;
-   double *beta1p = 0;
+   double *f1p = 0;
+   double *f22p = 0;
+   double *f21p = 0;
    if(doprdx) {
-     beta0p = new double[nxp];
-     beta1p = new double[nxp];
+     f21p = new double[nxp];
+     f22p = new double[nxp];
    }
    if(doprdz) {
-     fp = new double[nzp];
+     f1p = new double[nzp];
    }
 
    //--------------------------------------------------
@@ -370,54 +361,55 @@ RcppExport SEXP cbhetiv(
    double B0,B1;
    for(size_t i=0;i<(nd+burn);i++) {
       if(i%printevery==0&!quiet) Rprintf("done %d (out of %d)\n",i,nd+burn);
-      // h conditional -----------------------------------
+      // f2 conditional -----------------------------------
       // update ----- 
-      if(!nullh){
+      if(!nullf2){
         for(size_t j=0;j<n;j++) {
           mT = tmat[j][0]; mY = tmat[j][1]; sT = tmat[j][2]; gamma = tmat[j][3]; sY = tmat[j][4];
-          ZZ1 = (T[j] - mT - bmf.f(2*j))/sT;
-          ytemp[j] = Y[j] - mY - gamma * ZZ1;
-          svec[j] = sY; 
+          if(!nullf1) ZZ1 = (T[j] - mT - bmf1.f(2*j))/sT;
+          else ZZ1 = 0.;
+          ytempf2[j] = Y[j] - mY - gamma * ZZ1;
+          svecf2[j] = sY; 
         }
       //draw -----
-      bmh.draw(svec,gen);
+      bmf2.draw(svecf2,gen);
       }
       
-      // f conditional --------------------------------      
+      // f1 conditional --------------------------------      
       // update -----
-      if(!nullf){
+      if(!nullf1){
         double R;
         for(size_t j=0; j<n; j++) {
           mT = tmat[j][0]; mY = tmat[j][1]; sT = tmat[j][2]; gamma = tmat[j][3]; sY = tmat[j][4];
-          B0 = bmh.getbeta0(j); B1 = bmh.getbeta1(j);
-          ytempf[2*j] = T[j] - mT;
-          svecf[2*j] = sT;
+          B0 = bmf2.getbeta0(j); B1 = bmf2.getbeta1(j);
+          ytempf1[2*j] = T[j] - mT;
+          svecf1[2*j] = sT;
           R = (B1*sT+gamma)*(T[j]-mT)-sT*(Y[j]-mY-B0-B1*mT);
-          ytempf[2*j+1] = R/gamma;
-          svecf[2*j+1] = (sT*sY)/gamma;
+          ytempf1[2*j+1] = R/gamma;
+          svecf1[2*j+1] = (sT*sY)/gamma;
           //         cout << "YT: " << ytempf[2*j] << std::endl;
         }
       }
       // draws -----
-      bmf.draw(svecf,gen);
+      bmf1.draw(svecf1,gen);
       // Sigma conditional -----------------------------
       //cout << "\n&&&&&&about to do Sigma\n";
       //update -----
       for(size_t j=0;j<n;j++) {
-        yS[2*j] = T[j] - bmf.f(2*j);
-        yS[2*j+1] = Y[j] - bmh.f(j);
+        yS[2*j] = T[j] - bmf1.f(2*j);
+        yS[2*j+1] = Y[j] - bmf2.f(j);
       }
+      
       //draw -----
       dpmS.draw(gen);
       if(centermeans) dpmS.center();
       tmat = dpmS.thetaMatrix();
       
       if(doprdx){
-        //        bmh.predict(px,nx,x,T,hp);
-        bmh.predictb(pxp,nxp,xp,beta0p,beta1p);
+        bmf2.predict(pxp,nxp,xp,f22p,f21p);
       }
       if(doprdz){
-        bmf.predict(pzp,nzp,zp,zeroVp,fp);
+        bmf1.predict(pzp,nzp,zp,f1p);
       }
       
       if(i >= burn) {
@@ -433,36 +425,34 @@ RcppExport SEXP cbhetiv(
                dcor(j,k) = dcov(j,k)/(dsigma1(j,k)*dsigma2(j,k));
                dgamma(j,k) = tmat[k][3];
                dsY(j,k) = tmat[k][4];
-               dLL(j,k) = bvnorm(T[k],Y[k],bmf.f(2*k),dbeta0(j,k)+dbeta1(j,k)*T[k],dsigma1(j,k),dsigma2(j,k),dcov(j,k));
+               dLL(j,k) = bvnorm(T[k],Y[k],bmf1.f(2*k),df22(j,k)+df21(j,k)*T[k],dsigma1(j,k),dsigma2(j,k),dcov(j,k));
              }
            }
 
          if(include_output==1){
            for(size_t k=0;k<n;k++) {
-             dbeta0(j,k) = bmh.getbeta0(k);
-             dbeta1(j,k) = bmh.getbeta1(k);
+             df21(j,k) = bmf2.getbeta1(k);
+             df22(j,k) = bmf2.getbeta0(k);
            }
          }
          
          if(doprdx) {
            for(size_t k=0;k<nxp;k++) {
-             dbeta0p(j,k) = beta0p[k];
-             dbeta1p(j,k) = beta1p[k];
-             //      dhp(j,k) = hp[k];
+             df22p(j,k) = f22p[k];
+             df21p(j,k) = f21p[k];
            }
          }
          
          if(doprdz) {
            for(size_t k=0;k<nzp;k++) {
-             dfp(j,k) = fp[k];
-             //      dhp(j,k) = hp[k];
+             df1p(j,k) = f1p[k];
            }
          }
 
          
          if(include_output==1){
            for(size_t k=0;k<n;k++) {
-             df(j,k) = bmf.f(2*k);
+             df1(j,k) = bmf1.f(2*k);
            }
          }
       }
@@ -480,8 +470,8 @@ RcppExport SEXP cbhetiv(
    ret["dnpart"]=dnpart;
    ret["dalpha"]=dalpha;
    if(include_output==1){
-     ret["dbeta0"] = dbeta0;
-     ret["dbeta1"] = dbeta1;
+     ret["df22"] = df22;
+     ret["df21"] = df21;
      ret["dcov"]=dcov;   
      ret["dsigma1"]=dsigma1;
      ret["dsigma2"]=dsigma2;
@@ -489,28 +479,27 @@ RcppExport SEXP cbhetiv(
      ret["dgamma"]=dgamma;
      ret["dsY"]=dsY;
      ret["dLL"]=dLL;
-     ret["df1"] = df;
-     ret["dfburn"] = dfburn;
-     ret["dhburn"] = dhburn;
+     ret["df1"] = df1;
+     ret["df1burn"] = df1burn;
+     ret["df2burn"] = df2burn;
    }
-   if(doprdz) ret["df1.test"] = dfp;
+   if(doprdz) ret["df1.test"] = df1p;
    if(doprdx){
-     ret["dbeta0.test"] = dbeta0p;
-     ret["dbeta1.test"] = dbeta1p;
+     ret["df22.test"] = df22p;
+     ret["df21.test"] = df21p;
    }
       
    //-------------------------------------------------
    // free
    if(yS) delete [] yS;
-   if(ytemp) delete [] ytemp;
-   if(svec) delete [] svec;
+   if(ytempf1) delete [] ytempf1;
+   if(svecf1) delete [] svecf1;
    if(z2) delete [] z2;
-   if(ytempf) delete [] ytempf;
-   if(svecf) delete [] svecf;
-   if(txf) delete [] txf;
-   if(beta0p) delete [] beta0p;
-   if(beta1p) delete [] beta1p;
-   if(fp) delete [] fp;
+   if(ytempf2) delete [] ytempf2;
+   if(svecf2) delete [] svecf2;
+   if(f1p) delete [] f1p;
+   if(f21p) delete [] f21p;
+   if(f22p) delete [] f22p;
    return ret;
 }
 

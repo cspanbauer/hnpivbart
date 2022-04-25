@@ -22,6 +22,7 @@ hetivbart = function(Z, T, Y, X=NULL,
                      X.test=NULL,
                      burn=1000, nd=2000, burnf1=1000, burnf2=1000,
                      keepevery=10,
+                     Abeta=NA,
                      m1=200, m2=200, nc=100,
                      power=2, base=0.95,
                      k=2, sigmaf1=NA, sigmaf2=NA,
@@ -109,19 +110,19 @@ hetivbart = function(Z, T, Y, X=NULL,
         res$dsigma2 = res$dsigma2[thin, ]
         res$dcov = res$dcov[thin, ]
         res$df1 = res$df1[thin, ]
-        res$df21 = res$dbeta0[thin,]
-        res$df22 = res$dbeta1[thin,]
-        res$df2 = res$df21+matrix(rep(T,each=nd),nrow=nd)*res$df22
+        res$df22 = res$df22[thin,]
+        res$df21 = res$df21[thin,]
+        res$df2 = res$df22+matrix(rep(T,each=nd),nrow=nd)*res$df1
         res$dLL = res$dLL[thin, ]
     }
     if(NROW(Z.test)!=0){
         res$df1.test = res$df1.test[thin, ]
     }
     if(NROW(X.test)!=0){
-        res$df21.test = res$dbeta0.test[thin,]
-        res$df22.test = res$dbeta1.test[thin,]
+        res$df21.test = res$df21.test[thin,]
+        res$df22.test = res$df22.test[thin,]
         if(length(T.test)!=0)
-            res$df2.test = res$df21.test+matrix(rep(T.test,each=nd),nrow=nd)*res$df22.test
+            res$df2.test = res$df22.test+matrix(rep(T.test,each=nd),nrow=nd)*res$df21.test
     }
     class(res) <- 'hetivbart'
     return(res)

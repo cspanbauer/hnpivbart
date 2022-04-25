@@ -7,7 +7,6 @@ public:
   dinfo() {p=0;n=0;x=0;y=0;w=0;}
    size_t p;  //number of vars
    size_t n;  //number of observations
-  size_t size_beta;
    double *x; // jth var of ith obs is *(x + p*i+j)
    double *y; // ith y is *(y+i) or y[i]
   double *w;
@@ -16,14 +15,14 @@ public:
 class pinfo
 {
 public:
-   pinfo(): pbd(1.0),pb(.5),alpha(.95),mybeta(2.0),tau(1.0) {}
+  pinfo(): pbd(1.0),pb(.5),alpha(.95),mybeta(2.0),tau(1.0) {}
 //mcmc info
    double pbd; //prob of birth/death
    double pb;  //prob of birth
 //prior info
    double alpha;
    double mybeta;
-   double tau;
+  double tau;
    void pr() {
       cout << "pbd,pb: " << pbd << ", " << pb << std::endl;
       cout << "alpha,beta,tau: " << alpha << 

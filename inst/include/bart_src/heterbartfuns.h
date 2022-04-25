@@ -10,37 +10,95 @@
 
 //--------------------------------------------------
 //heterlh, replacement for lil that only depends on sum y.
-double heterlh(double sr, double sry, double tau);
+double heterlh(double b, double M, double tau);
 //--------------------------------------------------
+//compute b and M  for left and right give bot and v,c
+void hetergetsuff(tree<double>& x, typename tree<double>::tree_p nx, size_t v, size_t c, xinfo& xi, dinfo& di, size_t& nl, double& srl, double& sryl, size_t& nr, double& srr, double& sryr, double *sigma);
+//--------------------------------------------------
+//compute b and M for left and right bots
+void hetergetsuff(tree<double>& x, typename tree<double>::tree_p left, typename tree<double>::tree_p right, xinfo& xi, dinfo& di, double& srl, double& sryl, double& srr, double& sryr, double *sigma);
 //compute sufficient statistics for left and right give bot and v,c
-void hetergetsuff(tree& x, tree::tree_p nx, size_t v, size_t c, xinfo& xi, dinfo& di, size_t& nl, double& srl, double& sryl, double& srwl, double& srwyl, double& srwwl, size_t& nr,  double& srr, double& sryr, double& srwr, double& srwyr, double& srwwr, double *sigma);
-//--------------------------------------------------
+void hetergetsuff(tree<std::vector<double>>& x, typename tree<std::vector<double>>::tree_p nx, size_t v, size_t c, xinfo& xi, dinfo& di, size_t& nl, double& srl, double& sryl, double& srwl, double& srwyl, double& srwwl, size_t& nr,  double& srr, double& sryr, double& srwr, double& srwyr, double& srwwr, double *sigma);
 //compute sufficient statistics for left and right bots
-void hetergetsuff(tree& x, tree::tree_p left, tree::tree_p right, xinfo& xi, dinfo& di, double& srl, double& sryl, double& srwl, double& srwyl, double& srwwl, double& srr, double& sryr, double& srwr, double& srwyr, double& srwwr, double *sigma);
+void hetergetsuff(tree<std::vector<double>>& x, typename tree<std::vector<double>>::tree_p left, typename tree<std::vector<double>>::tree_p right, xinfo& xi, dinfo& di, double& srl, double& sryl, double& srwl, double& srwyl, double& srwwl, double& srr, double& sryr, double& srwr, double& srwyr, double& srwwr, double *sigma);
 //--------------------------------------------------
-//draw one mu from post (Constant)
-double heterdrawnodemu0(double sr, double sry, double tau, rn& gen);
-//draw two mu from post (Linear)
-std::vector<double> heterdrawnodemu1(double sr, double sry, double srw, double srwy, double srww, double tau, rn& gen);
+//draw one mu from post
+double heterdrawnodetheta(double sr, double sry, double tau, rn& gen);
+//--------------------------------------------------
+// draw two mu from post (Linear)
+std::vector<double> heterdrawnodetheta(double sr, double sry, double srw, double srwy, double srww, double tau, rn& gen);
 //--------------------------------------------------
 //get sufficients stats for all bottom nodes, this way just loop through all the data once.
-void heterallsuff(tree& x, xinfo& xi, dinfo& di, tree::npv& bnv, std::vector<double>& srv, std::vector<double>& sryv, std::vector<double>& srwv, std::vector<double>& srwyv, std::vector<double>& srwwv, double *sigma);
+void heterallsuff(tree<double>& x, xinfo& xi, dinfo& di, tree<double>::npv& bnv, std::vector<double>& srv, std::vector<double>& sryv,double *sigma);
 //--------------------------------------------------
-//heter version of drmu, need b and M instead of n and sy
-void heterdrmu(tree& t, xinfo& xi, dinfo& di, pinfo& pi, double *sigma, rn& gen);
+//get sufficients stats for all bottom nodes, this way just loop through all the data once.
+void heterallsuff(tree<std::vector<double>>& x, xinfo& xi, dinfo& di, tree<std::vector<double>>::npv& bnv, std::vector<double>& srv, std::vector<double>& sryv, std::vector<double>& srwv, std::vector<double>& srwyv, std::vector<double>& srwwv, double *sigma);
+//--------------------------------------------------
+//heter version of drtheta, need b and M instead of n and sy
+void heterdrtheta(tree<double>& t, xinfo& xi, dinfo& di, pinfo& pi, double *sigma, rn& gen);
+//--------------------------------------------------
+//heter version of drtheta, need b and M instead of n and sy
+void heterdrtheta(tree<std::vector<double>>& t, xinfo& xi, dinfo& di, pinfo& pi, double *sigma, rn& gen);
 
 //#include "heterbartfuns.h"
 
 //--------------------------------------------------
 //heterlh, replacement for lil that only depends on sum y.
-double heterlh(double sr, double sry, double tau) {
-   double t2 =tau*tau;
-   double k = sr*t2+1;
-   return -.5*log(k)+.5*sry*sry*t2/k;
+double heterlh(double b, double M, double tau) {
+   double t2 = tau*tau;
+   double k = b*t2+1;
+   return -.5*log(k)+.5*M*M*t2/k;
 }
 //--------------------------------------------------
 //compute b and M  for left and right give bot and v,c
-void hetergetsuff(tree& x, tree::tree_p nx, size_t v, size_t c, xinfo& xi, dinfo& di, size_t& nl, double& srl, double& sryl, double& srwl, double& srwyl, double& srwwl, size_t& nr,  double& srr, double& sryr, double& srwr, double& srwyr, double& srwwr, double *sigma)
+void hetergetsuff(tree<double>& x, tree<double>::tree_p nx, size_t v, size_t c, xinfo& xi, dinfo& di, size_t& nl, double& srl, double& sryl, size_t& nr,  double& srr, double& sryr, double *sigma)
+{
+   double *xx;//current x
+   srl=0; srr=0.0; sryl=0; sryr=0.0; nl=0; nr=0;
+   double r;
+
+   for(size_t i=0;i<di.n;i++) {
+      xx = di.x + i*di.p;
+      if(nx==x.bn(xx,xi)) { //does the bottom node = xx's bottom node
+         r= 1.0/(sigma[i]*sigma[i]);
+         if(xx[v] < xi[v][c]) {
+               nl+=1;
+               srl+=r;
+               sryl+=r*di.y[i];
+          } else {
+               nr+=1;
+               srr+=r;
+               sryr+=r*di.y[i];
+          }
+      }
+   }
+}
+//--------------------------------------------------
+//compute b and M for left and right bots
+void hetergetsuff(tree<double>& x, tree<double>::tree_p left, tree<double>::tree_p right, xinfo& xi, dinfo& di, double& srl, double& sryl, double& srr, double& sryr, double *sigma)
+{
+
+   double *xx;//current x
+   srl=0; sryl=0.0; srr=0; sryr=0.0;
+   double r;
+
+   for(size_t i=0;i<di.n;i++) {
+      xx = di.x + i*di.p;
+      tree<double>::tree_cp bn = x.bn(xx,xi);
+      if(bn==left) {
+         r = 1.0/(sigma[i]*sigma[i]);
+         srl+=r;
+         sryl += r*di.y[i];
+      }
+      if(bn==right) {
+         r = 1.0/(sigma[i]*sigma[i]);
+         srr+=r;
+         sryr += r*di.y[i];
+      }
+   }
+}
+//compute sufficient statistics for left and right give bot and v,c
+void hetergetsuff(tree<std::vector<double>>& x, tree<std::vector<double>>::tree_p nx, size_t v, size_t c, xinfo& xi, dinfo& di, size_t& nl, double& srl, double& sryl, double& srwl, double& srwyl, double& srwwl, size_t& nr,  double& srr, double& sryr, double& srwr, double& srwyr, double& srwwr, double *sigma)
 {
    double *xx;//current x
    nl=0;srl=0.0;sryl=0.0;srwl=0.0;srwyl=0.0;srwwl=0.0;
@@ -70,11 +128,10 @@ void hetergetsuff(tree& x, tree::tree_p nx, size_t v, size_t c, xinfo& xi, dinfo
       }
    }
 }
-//--------------------------------------------------
-//compute b and M for left and right bots
-void hetergetsuff(tree& x, tree::tree_p left, tree::tree_p right, xinfo& xi, dinfo& di, double& srl, double& sryl, double& srwl, double& srwyl, double& srwwl, double& srr, double& sryr, double& srwr, double& srwyr, double& srwwr, double *sigma)
+//compute sufficient statistics for left and right bots
+void hetergetsuff(tree<std::vector<double>>& x, typename tree<std::vector<double>>::tree_p left, typename tree<std::vector<double>>::tree_p right, xinfo& xi, dinfo& di, double& srl, double& sryl, double& srwl, double& srwyl, double& srwwl, double& srr, double& sryr, double& srwr, double& srwyr, double& srwwr, double *sigma)
 {
-
+  
   double *xx;//current x
    srl=0.0; sryl=0.0; srwl=0.0; srwyl=0.0; srwwl=0.0;
    srr=0.0; sryr=0.0; srwr=0.0; srwyr=0.0; srwwr=0.0;
@@ -82,7 +139,7 @@ void hetergetsuff(tree& x, tree::tree_p left, tree::tree_p right, xinfo& xi, din
 
    for(size_t i=0;i<di.n;i++) {
       xx = di.x + i*di.p;
-      tree::tree_cp bn = x.bn(xx,xi);
+      typename tree<std::vector<double>>::tree_cp bn = x.bn(xx,xi);
       if(bn==left) {
         r = 1.0/(sigma[i]*sigma[i]);
         srl+=r;
@@ -102,49 +159,86 @@ void hetergetsuff(tree& x, tree::tree_p left, tree::tree_p right, xinfo& xi, din
    }
 }
 //--------------------------------------------------
-//draw one mu from post (Constant)
-double heterdrawnodemu0(double sr, double sry, double tau, rn& gen)
+//draw one mu from post
+double heterdrawnodetheta(double sr, double sry, double tau, rn& gen)
 {
-  double muhat = sry/sr;
-  double a = 1.0/(tau*tau);
-  double v = 1.0/(a+sr);
-  double m = v*sry;
-  return(m + sqrt(v)*gen.normal());
+   double muhat = sry/sr;
+   double a = 1.0/(tau*tau);
+   return (sr*muhat)/(a+sr) + gen.normal()/sqrt(a+sr);
 }
 //--------------------------------------------------
 // draw two mu from post (Linear)
-std::vector<double> heterdrawnodemu1(double sr, double sry, double srw, double srwy, double srww, double tau, rn& gen)
+std::vector<double> heterdrawnodetheta(double sr, double sry, double srw, double srwy, double srww, double tau, rn& gen)
 {
-  std::vector<double> _out (2,0.0);
   double t2 = tau*tau;
-  double vinv11=sr+1.0/t2; double vinv12=srw; double vinv22=srww+1.0/t2;
-  double dtrmntinv = 1.0/(vinv11*vinv22-vinv12*vinv12);
-  double vbeta11=dtrmntinv*vinv22;
-  double vbeta12=-dtrmntinv*vinv12;
-  double vbeta22=dtrmntinv*vinv11;
-  double zscore1=gen.normal();
-  double zscore2=gen.normal();
-  double sdbeta0=sqrt(vbeta11);
-  double cholfactor=vbeta12/sdbeta0;
-  double sdbeta1=sqrt(vbeta22-cholfactor*cholfactor);
-  _out[0] = sdbeta0*zscore1;
-  _out[1] = zscore1*cholfactor+sdbeta1*zscore2;
-  _out[0] = _out[0]+vbeta11*sry+vbeta12*srwy;
-  _out[1] = _out[1]+vbeta12*sry+vbeta22*srwy;
-  return _out;
+  double inv_V00 = sr + 1./t2;
+  double inv_V01 = srw;
+  double inv_V11 = srww + 1./t2;
+  double det_invV = inv_V00*inv_V11-inv_V01*inv_V01;
+  double V00 = (1./det_invV)*inv_V11;
+  double V11 = (1./det_invV)*inv_V00;
+  double V01 = -(1./det_invV)*inv_V01;
+  double wty0 = sry;
+  double wty1 = srwy;
+  double m0 = wty0*V00+wty1*V01;
+  double m1 = wty0*V01+wty1*V11;
+  double chol_V00 = sqrt(V00);
+  double chol_V01 = V01/chol_V00;
+  double chol_V11 = sqrt(V11-chol_V01*chol_V01);
+  std::vector<double> out(2,0.);
+  double Z0 = gen.normal();
+  double Z1 = gen.normal();
+  // cout << "M0: " << m0 << '\n';
+  // cout << "M1: " << m1 << '\n';
+  // cout << "V00: " << V00 << '\n';
+  // cout << "V01: " << V01 << '\n';
+  // cout << "V11: " << V11 << '\n';
+  out[0] = chol_V00*Z0 + m0;
+  out[1] = chol_V01*Z0 + chol_V11*Z1 + m1;
+  return out;
 }
 //--------------------------------------------------
 //get sufficients stats for all bottom nodes, this way just loop through all the data once.
-void heterallsuff(tree& x, xinfo& xi, dinfo& di, tree::npv& bnv, std::vector<double>& srv, std::vector<double>& sryv, std::vector<double>& srwv, std::vector<double>& srwyv, std::vector<double>& srwwv, double *sigma)
+void heterallsuff(tree<double>& x, xinfo& xi, dinfo& di, tree<double>::npv& bnv, std::vector<double>& srv, std::vector<double>& sryv, double *sigma)
 {
-   tree::tree_cp tbn; //the pointer to the bottom node for the current observations
+   tree<double>::tree_cp tbn; //the pointer to the bottom node for the current observations
    size_t ni;         //the  index into vector of the current bottom node
    double *xx;        //current x
 
    bnv.clear();
    x.getbots(bnv);
 
-   typedef tree::npv::size_type bvsz;
+   typedef tree<double>::npv::size_type bvsz;
+   bvsz nb = bnv.size();
+   srv.resize(nb);
+   sryv.resize(nb);
+
+   std::map<tree<double>::tree_cp,size_t> bnmap;
+   for(bvsz i=0;i!=bnv.size();i++) {bnmap[bnv[i]]=i;srv[i]=0;sryv[i]=0.0;}
+
+   double r;
+   for(size_t i=0;i<di.n;i++) {
+      r = 1.0/(sigma[i]*sigma[i]);
+      xx = di.x + i*di.p;
+      tbn = x.bn(xx,xi);
+      ni = bnmap[tbn];
+
+      srv[ni] += r;
+      sryv[ni] += r*di.y[i];
+   }
+}
+//--------------------------------------------------
+//get sufficients stats for all bottom nodes, this way just loop through all the data once.
+void heterallsuff(tree<std::vector<double>>& x, xinfo& xi, dinfo& di, tree<std::vector<double>>::npv& bnv, std::vector<double>& srv, std::vector<double>& sryv, std::vector<double>& srwv, std::vector<double>& srwyv, std::vector<double>& srwwv, double *sigma)
+{
+  tree<std::vector<double>>::tree_cp tbn; //the pointer to the bottom node for the current observations
+   size_t ni;         //the  index into vector of the current bottom node
+   double *xx;        //current x
+
+   bnv.clear();
+   x.getbots(bnv);
+
+   typedef tree<std::vector<double>>::npv::size_type bvsz;
    bvsz nb = bnv.size();
    srv.resize(nb);
    sryv.resize(nb);
@@ -152,7 +246,7 @@ void heterallsuff(tree& x, xinfo& xi, dinfo& di, tree::npv& bnv, std::vector<dou
    srwyv.resize(nb);
    srwwv.resize(nb);
 
-   std::map<tree::tree_cp,size_t> bnmap;
+   std::map<tree<std::vector<double>>::tree_cp,size_t> bnmap;
    for(bvsz i=0;i!=bnv.size();i++) {
      bnmap[bnv[i]]=i;
      srv[i]=0.0;
@@ -177,33 +271,29 @@ void heterallsuff(tree& x, xinfo& xi, dinfo& di, tree::npv& bnv, std::vector<dou
    }
 }
 //--------------------------------------------------
-//heter version of drmu, need b and M instead of n and sy
-void heterdrmu(tree& t, xinfo& xi, dinfo& di, pinfo& pi, double *sigma, rn& gen)
+//heter version of drtheta, need b and M instead of n and sy
+void heterdrtheta(tree<double>& t, xinfo& xi, dinfo& di, pinfo& pi, double *sigma, rn& gen)
 {
-   tree::npv bnv;
+   tree<double>::npv bnv;
    std::vector<double> srv;
    std::vector<double> sryv;
-   std::vector<double> srwv;
-   std::vector<double> srwyv;
-   std::vector<double> srwwv;
-   heterallsuff(t,xi,di,bnv,srv,sryv,srwv,srwyv,srwwv,sigma);
-
-   if(di.size_beta==1){
-     for(tree::npv::size_type i=0;i!=bnv.size();i++){
-       bnv[i]->setbeta(0,heterdrawnodemu0(srv[i],sryv[i],pi.tau,gen));
-     }
-   }
-   else if(di.size_beta==2){
-     for(tree::npv::size_type i=0;i!=bnv.size();i++){
-       std::vector<double> tmpout;
-       tmpout=heterdrawnodemu1(srv[i],sryv[i],srwv[i],srwyv[i],srwwv[i],pi.tau,gen);
-       bnv[i]->setbeta(0,tmpout[0]);
-       bnv[i]->setbeta(1,tmpout[1]);
-     }
-   }
-   else {}
+   heterallsuff(t,xi,di,bnv,srv,sryv,sigma);
+   for(tree<double>::npv::size_type i=0;i!=bnv.size();i++)
+     bnv[i]->settheta(heterdrawnodetheta(srv[i],sryv[i],pi.tau,gen));
 }
-
-     
+//--------------------------------------------------
+//heter version of drtheta, need b and M instead of n and sy
+void heterdrtheta(tree<std::vector<double>>& t, xinfo& xi, dinfo& di, pinfo& pi, double *sigma, rn& gen)
+{
+  tree<std::vector<double>>::npv bnv;
+  std::vector<double> srv;
+  std::vector<double> sryv;
+  std::vector<double> srwv;
+  std::vector<double> srwyv;
+  std::vector<double> srwwv;
+  heterallsuff(t,xi,di,bnv,srv,sryv,srwv,srwyv,srwwv,sigma);
+  for(tree<std::vector<double>>::npv::size_type i=0;i!=bnv.size();i++)
+    bnv[i]->settheta(heterdrawnodetheta(srv[i],sryv[i],srwv[i],srwyv[i],srwwv[i],pi.tau,gen));
+}
 
 #endif

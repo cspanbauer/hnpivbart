@@ -3,25 +3,25 @@
 
 #include <iostream>
 #include "tree.h"
+#include "info.h"
 
 //--------------------------------------------------
 //write cutpoint information to screen
 void prxi(xinfo& xi);
 //--------------------------------------------------
-//evaluate tree tr on grid xi, write to os
-void grm(tree& tr, xinfo& xi, std::ostream& os);
+//fit tree at matrix of x, matrix is stacked columns x[i,j] is *(x+p*i+j)
+void fit(tree<double>& t, xinfo& xi, size_t p, size_t n, double *x,  double* fv);
 //--------------------------------------------------
 //fit tree at matrix of x, matrix is stacked columns x[i,j] is *(x+p*i+j)
-void fit(tree& t, xinfo& xi, size_t p, size_t n, double *x, size_t size_beta, double* fv);
+void fit(tree<std::vector<double>>& t, xinfo& xi, size_t p, size_t n, double *x,  double* fv);
 //--------------------------------------------------
 //does a (bottom) node have variables you can split on?
-bool cansplit(tree::tree_p n, xinfo& xi);
+template <class T>
+bool cansplit(typename tree<T>::tree_p n, xinfo& xi);
 //--------------------------------------------------
 //find variables n can split on, put their indices in goodvars
-void getgoodvars(tree::tree_p n, xinfo& xi,  std::vector<size_t>& goodvars);
-
-//#include "treefuns.h"
-
+template <typename T>
+void getgoodvars(typename tree<T>::tree_p n, xinfo& xi, std::vector<size_t>& goodvars);
 //--------------------------------------------------
 //write cutpoint information to screen
 void prxi(xinfo& xi)
@@ -34,54 +34,31 @@ void prxi(xinfo& xi)
    cout << "\n\n";
 }
 //--------------------------------------------------
-//evalute tree tr on grid given by xi and write to os
-void grm(tree& tr, xinfo& xi, std::ostream& os)
+//fit tree at matrix of x, matrix is stacked columns x[i,j] is *(x+p*i+j)
+void fit(tree<double>& t, xinfo& xi, size_t p, size_t n, double *x,  double* fv)
 {
-   size_t p = xi.size();
-   if(p!=2) {
-      cout << "error in grm, p !=2\n";
-      return;
+   tree<double>::tree_p bn;
+   for(size_t i=0;i<n;i++) {
+      bn = t.bn(x+i*p,xi);
+      fv[i] = bn->gettheta();
    }
-   size_t n1 = xi[0].size();
-   size_t n2 = xi[1].size();
-   tree::tree_p bp; //pointer to bottom node
-   double *x = new double[2];
-   for(size_t i=0;i!=n1;i++) {
-      for(size_t j=0;j!=n2;j++) {
-         x[0] = xi[0][i];
-         x[1] = xi[1][j];
-         bp = tr.bn(x,xi);
-         os << x[0] << " " << x[1] << " ";
-         for(size_t k=0;k<bp->getbeta().size();k++){
-           os << bp->getbeta(k) << " ";
-         }
-         os << std::endl;
-      }
-   }
-   delete[] x;
 }
 //--------------------------------------------------
 //fit tree at matrix of x, matrix is stacked columns x[i,j] is *(x+p*i+j)
-void fit(tree& t, xinfo& xi, size_t p, size_t n, double *x,  size_t size_beta, double* fv)
+void fit(tree< std::vector< double > >& t, xinfo& xi, size_t p, size_t n, double *x,  double* fv)
 {
-   tree::tree_p bn;
-   if(size_beta==1){
-     for(size_t i=0;i<n;i++) {
-       bn = t.bn(x+i*p,xi);
-       fv[i] = bn->getbeta(0);
-     }
-   }
-   else if(size_beta==2){
-     for(size_t i=0;i<n;i++) {
-       bn = t.bn(x+i*p,xi);
-       fv[2*i] = bn->getbeta(0);
-       fv[2*i+1] = bn->getbeta(1);
-     }
+  tree<std::vector<double>>::tree_p bn;
+   for(size_t i=0;i<n;i++) {
+      bn = t.bn(x+i*p,xi);
+      std::vector<double> _theta=bn->gettheta();
+      fv[2*i] = _theta[0];
+      fv[2*i+1] = _theta[1];
    }
 }
 //--------------------------------------------------
 //does this bottom node n have any variables it can split on.
-bool cansplit(tree::tree_p n, xinfo& xi)
+template <typename T>
+bool cansplit(typename tree<T>::tree_p n, xinfo& xi)
 {
    int L,U;
    bool v_found = false; //have you found a variable you can split on
@@ -96,7 +73,8 @@ bool cansplit(tree::tree_p n, xinfo& xi)
 }
 //--------------------------------------------------
 //find variables n can split on, put their indices in goodvars
-void getgoodvars(tree::tree_p n, xinfo& xi,  std::vector<size_t>& goodvars)
+template <typename T>
+void getgoodvars(typename tree<T>::tree_p n, xinfo& xi,  std::vector<size_t>& goodvars)
 {
    goodvars.clear();
    int L,U;
@@ -106,6 +84,5 @@ void getgoodvars(tree::tree_p n, xinfo& xi,  std::vector<size_t>& goodvars)
       if(U>=L) goodvars.push_back(v);
    }
 }
-
 
 #endif

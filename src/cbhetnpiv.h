@@ -157,10 +157,6 @@ RcppExport SEXP cbhetnpiv(
    bool quiet = Rcpp::as<bool>(_quiet);
 
    size_t n = nTx;
-
-   //Zero vector for first BART model
-   Rcpp::NumericVector zeroV(2*n);
-   double *zeroVp = &zeroV[0];
    
    if(!quiet){
      Rprintf("*****************************************************************\n");
@@ -216,11 +212,11 @@ RcppExport SEXP cbhetnpiv(
          z2[start+j] = z[i*pz+j];
       }
    }
-   heterbart bmf(m1,1);
+   heterbart<double> bmf(m1);
    bmf.setprior(alpha,mybeta,tauf);
    double *ytempf = new double[2*n];  //y for h bart
    double *svecf = new double[2*n];   // sigma_i for h bart
-   bmf.setdata(pz,2*n,z2,ytempf,zeroVp,nc);
+   bmf.setdata(pz,2*n,z2,ytempf,nc);
    Rcpp::NumericMatrix dfburn(1,1);
    if(include_output==1) dfburn(burnf,n); //h draws on train
    Dp::dv fhatb(n,0.0);
@@ -250,12 +246,11 @@ RcppExport SEXP cbhetnpiv(
    //-------------------------------------------------
    // bart h setup
    //--------------------------------------------------
-   heterbart bmh(m2,1);
+   heterbart<double> bmh(m2);
    bmh.setprior(alpha,mybeta,tauh);
    double *ytemp = new double[n];  //y for h bart
    double *svec = new double[n];   // sigma_i for h bart
-   bmh.setdata(pTx,nTx,Tx,ytemp,zeroVp,nc);
-
+   bmh.setdata(pTx,nTx,Tx,ytemp,nc);
    //h burn-in
    Rcpp::NumericMatrix dhburn(1,1); //h draws on train
    if(include_output==1) dhburn(nd,n);
@@ -267,8 +262,6 @@ RcppExport SEXP cbhetnpiv(
       // h conditional -----------------------------------
       // update ----- 
       for(size_t j=0;j<n;j++) {
-        if(!nullf) ZZ10 = (T[j] - mTs - bmf.f(2*j))/sTs;
-        else ZZ10 = 0.;
          ytemp[j] = Y[j] - mYs - gammas * ZZ10;
          svec[j] = sYs; 
       }
@@ -404,11 +397,11 @@ RcppExport SEXP cbhetnpiv(
       tmat = dpmS.thetaMatrix();      
 
       if(doprdx){
-        bmh.predict(pTXp,nTXp,TXp,zeroVp,hp);
+        bmh.predict(pTXp,nTXp,TXp,hp);
       }
 
       if(doprdz){
-        bmf.predict(pzp,nzp,zp,zeroVp,fp);
+        bmf.predict(pzp,nzp,zp,fp);
       }
 
       

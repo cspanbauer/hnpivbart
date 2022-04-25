@@ -171,10 +171,6 @@ RcppExport SEXP cbnpiv(
 
    size_t n = nT;
 
-   //Zero vector for first BART model
-   Rcpp::NumericVector zeroV(2*n);
-   double *zeroVp = &zeroV[0];
-
    bool doh1 = (nx!=0);
    if(!doh1) burnh1=1;
 
@@ -232,11 +228,11 @@ RcppExport SEXP cbnpiv(
          z2[start+j] = z[i*pz+j];
       }
    }
-   heterbart bmf(m1,1);
+   heterbart<double> bmf(m1);
    bmf.setprior(alpha,mybeta,tauf);
    double *ytempf = new double[2*n];  //y for h bart
    double *svecf = new double[2*n];   // sigma_i for h bart
-   bmf.setdata(pz,2*n,z2,ytempf,zeroVp,nc);
+   bmf.setdata(pz,2*n,z2,ytempf,nc);
    Rcpp::NumericMatrix dfburn(1,1);
    if(include_output==1) dfburn(burnf,n); //h draws on train   
    Dp::dv fhatb(n,0.0);
@@ -266,13 +262,13 @@ RcppExport SEXP cbnpiv(
    //-------------------------------------------------
    // bart h0 setup
    //--------------------------------------------------
-   heterbart bmh0(m2,1);
+   heterbart<double> bmh0(m2);
    bmh0.setprior(alpha,mybeta,tauh0);
    double *ytemp0 = new double[n];  //y for h bart
    double *svec0 = new double[n];   // sigma_i for h bart
    /* double *Tcon = new double[n]; */
    /* for(size_t j=0;j<n;j++) Tcon[j] = T[j]-bmf.f(j); */
-   bmh0.setdata(1,n,T,ytemp0,zeroVp,nc);
+   bmh0.setdata(1,n,T,ytemp0,nc);
 
 
    //h0 burn-in
@@ -309,11 +305,11 @@ RcppExport SEXP cbnpiv(
    //-------------------------------------------------
    // bart h1 setup
    //--------------------------------------------------
-   heterbart bmh1(m2,1);
+   heterbart<double> bmh1(m2);
    bmh1.setprior(alpha,mybeta,tauh1);
    double *ytemp1 = new double[n];  //y for h bart
    double *svec1 = new double[n];   // sigma_i for h bart
-   bmh1.setdata(px,n,x,ytemp1,zeroVp,nc);
+   bmh1.setdata(px,n,x,ytemp1,nc);
    
    //h1 burn-in
    Rcpp::NumericMatrix dh1burn(1,1);
@@ -485,13 +481,13 @@ RcppExport SEXP cbnpiv(
 
       // Predictions
       if(doprdT){
-        bmh0.predict(1,nTp,Tp,zeroVp,h0p);
+        bmh0.predict(1,nTp,Tp,h0p);
       }
       if(doprdX2){
-        bmh1.predict(pxp,nxp,xp,zeroVp,h1p);
+        bmh1.predict(pxp,nxp,xp,h1p);
       }
       if(doprdz){
-        bmf.predict(pzp,nzp,zp,zeroVp,fp);
+        bmf.predict(pzp,nzp,zp,fp);
       }
 
       // Record posterior samples

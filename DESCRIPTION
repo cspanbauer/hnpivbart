@@ -18,4 +18,4 @@ LinkingTo: Rcpp
 NeedsCompilation: yes
 Suggests: knitr, rmarkdown, testthat
 VignetteBuilder: knitr
-Packaged: 2022-02-04 17:44:56 UTC; charley
+Packaged: 2022-04-25 22:08:33 UTC; charley
