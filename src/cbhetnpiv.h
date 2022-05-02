@@ -26,6 +26,7 @@ RcppExport SEXP cbhetnpiv(
    SEXP _Y,
    SEXP _burn,
    SEXP _nd,
+   SEXP _keepevery,
    SEXP _burnf,
    SEXP _burnh,
    SEXP _m1,
@@ -101,6 +102,7 @@ RcppExport SEXP cbhetnpiv(
    // burn, nd
    size_t burn = Rcpp::as<size_t>(_burn);
    size_t nd = Rcpp::as<size_t>(_nd);
+   size_t ke = Rcpp::as<size_t>(_keepevery);
    size_t burnf = Rcpp::as<size_t>(_burnf);
    size_t burnh = Rcpp::as<size_t>(_burnh);
 
@@ -353,7 +355,7 @@ RcppExport SEXP cbhetnpiv(
    tmat = dpmS.thetaMatrix();
 
    double mT=mTs,mY=mYs,sT=sTs,gamma=gammas,sY=sYs; //temporary values for mean and Lchol of Sigma
-   for(size_t i=0;i<(nd+burn);i++) {
+   for(size_t i=0;i<(nd*ke+burn);i++) {
       if(i%printevery==0&!quiet) Rprintf("done %d (out of %d)\n",i,nd+burn);
 
       // h conditional -----------------------------------
@@ -408,52 +410,51 @@ RcppExport SEXP cbhetnpiv(
 
       
       if(i >= burn) {
-         size_t j=i-burn;
-
-         dnpart[j] = dpmS.npart();
-         dalpha[j] = dpmS.getalpha();
-         for(size_t k=0;k<n;k++) {
-           dcovMean(k) += tmat[k][3]*tmat[k][2];
-           dcorMean(k) += (tmat[k][3]*tmat[k][2])/(tmat[k][2]*sqrt(tmat[k][3]*tmat[k][3]+tmat[k][4]*tmat[k][4]));
-           dcovSampMean(j) += (1./(double)n)*tmat[k][3]*tmat[k][2];
-           dcorSampMean(j) += (1./(double)n)*(tmat[k][3]*tmat[k][2])/(tmat[k][2]*sqrt(tmat[k][3]*tmat[k][3]+tmat[k][4]*tmat[k][4]));
-           if(include_output==1){
-             dsigma1(j,k) = tmat[k][2];
-             dsigma2(j,k) = sqrt(tmat[k][3]*tmat[k][3] + tmat[k][4]*tmat[k][4]);
-             dcov(j,k) = tmat[k][3]*tmat[k][2];
-             dcor(j,k) = dcov(j,k)/(dsigma1(j,k)*dsigma2(j,k));
-             dgamma(j,k) = tmat[k][3];
-             dsY(j,k) = tmat[k][4];
-             dLL(j,k) = bvnorm(T[k],Y[k],bmf.f(2*k),bmh.f(k),dsigma1(j,k),dsigma2(j,k),dcov(j,k));
-           }
-         }
+        size_t j=i-burn;
+        if(j % ke == 0){
+          size_t draw=j/ke;
+            
+            dnpart[draw] = dpmS.npart();
+            dalpha[draw] = dpmS.getalpha();
+            for(size_t k=0;k<n;k++) {
+              dcovMean(k) += (1./(double)nd)*tmat[k][3]*tmat[k][2];
+              dcorMean(k) += (1./(double)nd)*(tmat[k][3]*tmat[k][2])/(tmat[k][2]*sqrt(tmat[k][3]*tmat[k][3]+tmat[k][4]*tmat[k][4]));
+              dcovSampMean(draw) += (1./(double)n)*tmat[k][3]*tmat[k][2];
+              dcorSampMean(draw) += (1./(double)n)*(tmat[k][3]*tmat[k][2])/(tmat[k][2]*sqrt(tmat[k][3]*tmat[k][3]+tmat[k][4]*tmat[k][4]));
+              if(include_output==1){
+                dsigma1(draw,k) = tmat[k][2];
+                dsigma2(draw,k) = sqrt(tmat[k][3]*tmat[k][3] + tmat[k][4]*tmat[k][4]);
+                dcov(draw,k) = tmat[k][3]*tmat[k][2];
+                dcor(draw,k) = dcov(draw,k)/(dsigma1(draw,k)*dsigma2(draw,k));
+                dgamma(draw,k) = tmat[k][3];
+                dsY(draw,k) = tmat[k][4];
+             dLL(draw,k) = bvnorm(T[k],Y[k],bmf.f(2*k),bmh.f(k),dsigma1(draw,k),dsigma2(draw,k),dcov(draw,k));
+              }
+            }
          
-         if(include_output==1){
-           for(size_t k=0;k<n;k++) {
-             dh(j,k) = bmh.f(k);
-           }
+            if(include_output==1){
+              for(size_t k=0;k<n;k++) {
+                dh(draw,k) = bmh.f(k);
+              }
            
-           for(size_t k=0;k<n;k++) {
-             df(j,k) = bmf.f(2*k);
-           }
-         }
+              for(size_t k=0;k<n;k++) {
+                df(draw,k) = bmf.f(2*k);
+              }
+            }
+            
+            if(doprdx){
+              for(size_t k=0;k<nTXp;k++) {
+                dhp(draw,k) = hp[k];	   
+              }
+            }
          
-         if(doprdx){
-           for(size_t k=0;k<nTXp;k++) {
-             dhp(j,k) = hp[k];	   
-           }
-         }
-
-         if(doprdz){
-           for(size_t k=0;k<nzp;k++) {
-             dfp(j,k) = fp[k];
-           }
-         }
+            if(doprdz){
+              for(size_t k=0;k<nzp;k++) {
+                dfp(draw,k) = fp[k];
+              }
+            }
+        }   
       }
-   }
-   for(size_t k=0;k<n;k++){
-     dcovMean(k) = (1./(double)nd)*dcovMean(k);
-     dcorMean(k) = (1./(double)nd)*dcorMean(k);
    }
    int time2 = time(&tp);
    if(!quiet) Rprintf("time: %d\n",time2-time1);

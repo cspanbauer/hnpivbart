@@ -26,6 +26,7 @@ RcppExport SEXP cbhetiv(
    SEXP _Y,
    SEXP _burn,
    SEXP _nd,
+   SEXP _keepevery,
    SEXP _burnf1,
    SEXP _burnf2,
    SEXP _m1,
@@ -100,6 +101,7 @@ RcppExport SEXP cbhetiv(
    // burn, nd
    size_t burn = Rcpp::as<size_t>(_burn);
    size_t nd = Rcpp::as<size_t>(_nd);
+   size_t ke = Rcpp::as<size_t>(_keepevery);
    size_t burnf1 = Rcpp::as<size_t>(_burnf1);
    size_t burnf2 = Rcpp::as<size_t>(_burnf2);
 
@@ -414,45 +416,48 @@ RcppExport SEXP cbhetiv(
       
       if(i >= burn) {
          size_t j=i-burn;
-
-         dnpart[j] = dpmS.npart();
-         dalpha[j] = dpmS.getalpha();
+         if(j % ke == 0){
+           size_t draw=j/ke;
+           
+           dnpart[draw] = dpmS.npart();
+           dalpha[draw] = dpmS.getalpha();
            for(size_t k=0;k<n;k++) {
              if(include_output==1){               
-               dsigma1(j,k) = tmat[k][2];
-               dsigma2(j,k) = sqrt(tmat[k][3]*tmat[k][3] + tmat[k][4]*tmat[k][4]);
-               dcov(j,k) = tmat[k][3]*tmat[k][2];
-               dcor(j,k) = dcov(j,k)/(dsigma1(j,k)*dsigma2(j,k));
-               dgamma(j,k) = tmat[k][3];
-               dsY(j,k) = tmat[k][4];
-               dLL(j,k) = bvnorm(T[k],Y[k],bmf1.f(2*k),df22(j,k)+df21(j,k)*T[k],dsigma1(j,k),dsigma2(j,k),dcov(j,k));
+               dsigma1(draw,k) = tmat[k][2];
+               dsigma2(draw,k) = sqrt(tmat[k][3]*tmat[k][3] + tmat[k][4]*tmat[k][4]);
+               dcov(draw,k) = tmat[k][3]*tmat[k][2];
+               dcor(draw,k) = dcov(draw,k)/(dsigma1(draw,k)*dsigma2(draw,k));
+               dgamma(draw,k) = tmat[k][3];
+               dsY(draw,k) = tmat[k][4];
+               dLL(draw,k) = bvnorm(T[k],Y[k],bmf1.f(2*k),df22(draw,k)+df21(draw,k)*T[k],dsigma1(draw,k),dsigma2(draw,k),dcov(draw,k));
              }
            }
 
-         if(include_output==1){
-           for(size_t k=0;k<n;k++) {
-             df21(j,k) = bmf2.getbeta1(k);
-             df22(j,k) = bmf2.getbeta0(k);
+           if(include_output==1){
+             for(size_t k=0;k<n;k++) {
+               df21(draw,k) = bmf2.getbeta1(k);
+               df22(draw,k) = bmf2.getbeta0(k);
+             }
            }
-         }
          
-         if(doprdx) {
-           for(size_t k=0;k<nxp;k++) {
-             df22p(j,k) = f22p[k];
-             df21p(j,k) = f21p[k];
+           if(doprdx) {
+             for(size_t k=0;k<nxp;k++) {
+               df22p(draw,k) = f22p[k];
+               df21p(draw,k) = f21p[k];
+             }
            }
-         }
          
-         if(doprdz) {
-           for(size_t k=0;k<nzp;k++) {
-             df1p(j,k) = f1p[k];
+           if(doprdz) {
+             for(size_t k=0;k<nzp;k++) {
+               df1p(draw,k) = f1p[k];
+             }
            }
-         }
 
          
-         if(include_output==1){
-           for(size_t k=0;k<n;k++) {
-             df1(j,k) = bmf1.f(2*k);
+           if(include_output==1){
+             for(size_t k=0;k<n;k++) {
+               df1(draw,k) = bmf1.f(2*k);
+             }
            }
          }
       }

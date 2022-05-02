@@ -85,7 +85,8 @@ ivbart = function(Z, T, Y, X=NULL,
                 T,
                 Y,
                 burn,
-                nd*keepevery,
+                nd,
+                keepevery,
                 burnf1,
                 burnf22,
                 m1, m2, nc,
@@ -105,7 +106,7 @@ ivbart = function(Z, T, Y, X=NULL,
                 )
     
     res$check = NULL
-    thin = seq(1,nd*keepevery,keepevery)
+    thin = 1:nd
     res$dnpart = res$dnpart[thin]
     res$dalpha = res$dalpha[thin]
     res$dbeta = res$dbeta[thin]    

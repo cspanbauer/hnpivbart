@@ -26,6 +26,7 @@ RcppExport SEXP cbiv(
    SEXP _Y,
    SEXP _burn,
    SEXP _nd,
+   SEXP _keepevery,
    SEXP _burnf,
    SEXP _burnh1,
    SEXP _m1,
@@ -103,6 +104,7 @@ RcppExport SEXP cbiv(
    // burn, nd
    size_t burn = Rcpp::as<size_t>(_burn);
    size_t nd = Rcpp::as<size_t>(_nd);
+   size_t ke = Rcpp::as<size_t>(_keepevery);
    size_t burnf = Rcpp::as<size_t>(_burnf);
    size_t burnh1 = Rcpp::as<size_t>(_burnh1);
 
@@ -394,7 +396,7 @@ RcppExport SEXP cbiv(
    Dp::dv logLikelihood;
    tmat = dpmS.thetaMatrix();
    double mT=mTs,mY=mYs,sT=sTs,gamma=gammas,sY=sYs; //temporary values for mean and Lchol of Sigma
-   for(size_t i=0;i<(nd+burn);i++) {
+   for(size_t i=0;i<(nd*ke+burn);i++) {
       if(i%printevery==0&!quiet) Rprintf("done %d (out of %d)\n",i,nd+burn);
       // beta conditional -----------------------------------
       // update -----
@@ -457,43 +459,46 @@ RcppExport SEXP cbiv(
       // Record posterior samples
       if(i >= burn) {
         size_t j=i-burn;
-        dnpart[j] = dpmS.npart();
-        dalpha[j] = dpmS.getalpha();
+        if(j % ke == 0){
+          size_t draw=j/ke;
+          dnpart[draw] = dpmS.npart();
+          dalpha[draw] = dpmS.getalpha();
         
-        if(include_output==1){
-          for(size_t k=0;k<n;k++) {
-            dsigma1(j,k) = tmat[k][2];
-            dsigma2(j,k) = sqrt(tmat[k][3]*tmat[k][3] + tmat[k][4]*tmat[k][4]);
-            dgamma(j,k) = tmat[k][3];
-            dcov(j,k) = tmat[k][3]*tmat[k][2];
-            dcor(j,k) = dcov(j,k)/(dsigma1(j,k)*dsigma2(j,k));
-            dsY(j,k) = tmat[k][4];
-            dLL(j,k) = bvnorm(T[k],Y[k],bmf.f(2*k),betad*T[k]+bmh1.f(k),dsigma1(j,k),dsigma2(j,k),dcov(j,k));
-          }
-        }
-        	 
-        dbeta[j] = betad;
-     
-        if(include_output==1){
-          if(doh1) {
+          if(include_output==1){
             for(size_t k=0;k<n;k++) {
-              dh1(j,k) = bmh1.f(k);
+              dsigma1(draw,k) = tmat[k][2];
+              dsigma2(draw,k) = sqrt(tmat[k][3]*tmat[k][3] + tmat[k][4]*tmat[k][4]);
+              dgamma(draw,k) = tmat[k][3];
+              dcov(draw,k) = tmat[k][3]*tmat[k][2];
+              dcor(draw,k) = dcov(draw,k)/(dsigma1(draw,k)*dsigma2(draw,k));
+              dsY(draw,k) = tmat[k][4];
+              dLL(draw,k) = bvnorm(T[k],Y[k],bmf.f(2*k),betad*T[k]+bmh1.f(k),dsigma1(draw,k),dsigma2(draw,k),dcov(draw,k));
             }
           }
-          for(size_t k=0;k<n;k++) {
-            df(j,k) = bmf.f(2*k);
-          }              
-        }
-        
-        if(doprdx) {
-          for(size_t k=0;k<nxp;k++) {
-            dh1p(j,k) = h1p[k];
+        	 
+          dbeta[draw] = betad;
+     
+          if(include_output==1){
+            if(doh1) {
+              for(size_t k=0;k<n;k++) {
+                dh1(draw,k) = bmh1.f(k);
+              }
+            }
+            for(size_t k=0;k<n;k++) {
+              df(draw,k) = bmf.f(2*k);
+            }              
           }
-        }
         
-        if(doprdz) {
-          for(size_t k=0;k<nzp;k++) {
-            dfp(j,k) = fp[k];
+          if(doprdx) {
+            for(size_t k=0;k<nxp;k++) {
+              dh1p(draw,k) = h1p[k];
+            }
+          }
+        
+          if(doprdz) {
+            for(size_t k=0;k<nzp;k++) {
+              dfp(draw,k) = fp[k];
+            }
           }
         }
       }

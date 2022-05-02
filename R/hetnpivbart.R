@@ -84,7 +84,8 @@ hetnpivbart = function(Z, T, Y, X=NULL,
                 t(TX.test),
                 Y,
                 burn,
-                nd*keepevery,
+                nd,
+                keepevery,
                 burnf1,
                 burnf2,
                 m1, m2, nc,
@@ -105,7 +106,7 @@ hetnpivbart = function(Z, T, Y, X=NULL,
     res$check = NULL
     res$ag = ag
     res$priag = priag
-    thin = seq(1, nd*keepevery, keepevery)
+    thin = 1:nd
     res$dnpart = res$dnpart[thin]
     res$dalpha = res$dalpha[thin]
     res$dcov.samp.mean = res$dcov.samp.mean[thin]

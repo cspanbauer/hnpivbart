@@ -83,7 +83,8 @@ hetivbart = function(Z, T, Y, X=NULL,
                 T,
                 Y,
                 burn,
-                nd*keepevery,
+                nd,
+                keepevery,
                 burnf1,
                 burnf2,
                 m1, m2, nc,
@@ -102,7 +103,7 @@ hetivbart = function(Z, T, Y, X=NULL,
                 )
 
     res$check = NULL
-    thin <- seq(1,nd*keepevery,keepevery)
+    thin <- 1:nd
     res$dnpart = res$dnpart[thin]
     res$dalpha = res$dalpha[thin]
     if(include_output==1){

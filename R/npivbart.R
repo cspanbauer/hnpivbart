@@ -84,7 +84,8 @@ npivbart = function(Z, T, Y, X=NULL,
                 T.test,
                 Y,
                 burn,
-                nd*keepevery,
+                nd,
+                keepevery,
                 burnf1,
                 burnf21,
                 burnf22,
@@ -107,7 +108,7 @@ npivbart = function(Z, T, Y, X=NULL,
     res$check = NULL
     res$ag = ag
     res$priag = priag
-    thin = seq(1, nd*keepevery, keepevery)
+    thin = 1:nd
     res$dnpart = res$dnpart[thin]
     res$dalpha = res$dalpha[thin]
     if(include_output==1){
