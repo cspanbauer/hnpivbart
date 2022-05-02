@@ -314,6 +314,8 @@ RcppExport SEXP cbhetnpiv(
    Rcpp::NumericVector dalpha(nd);
    Rcpp::NumericVector dcovMean(n);
    Rcpp::NumericVector dcorMean(n);
+   Rcpp::NumericVector dcovSampMean(nd);
+   Rcpp::NumericVector dcorSampMean(nd);   
    //   Rcpp::NumericMatrix dclusters(nd,n);
    Rcpp::NumericMatrix dsigma1(1,1);  
    Rcpp::NumericMatrix dsigma2(1,1);
@@ -413,6 +415,8 @@ RcppExport SEXP cbhetnpiv(
          for(size_t k=0;k<n;k++) {
            dcovMean(k) += tmat[k][3]*tmat[k][2];
            dcorMean(k) += (tmat[k][3]*tmat[k][2])/(tmat[k][2]*sqrt(tmat[k][3]*tmat[k][3]+tmat[k][4]*tmat[k][4]));
+           dcovSampMean(j) += (1./(double)n)*tmat[k][3]*tmat[k][2];
+           dcorSampMean(j) += (1./(double)n)*(tmat[k][3]*tmat[k][2])/(tmat[k][2]*sqrt(tmat[k][3]*tmat[k][3]+tmat[k][4]*tmat[k][4]));
            if(include_output==1){
              dsigma1(j,k) = tmat[k][2];
              dsigma2(j,k) = sqrt(tmat[k][3]*tmat[k][3] + tmat[k][4]*tmat[k][4]);
@@ -478,6 +482,8 @@ RcppExport SEXP cbhetnpiv(
    }
    ret["dcov.mean"] = dcovMean;
    ret["dcor.mean"] = dcorMean;
+   ret["dcov.samp.mean"] = dcovSampMean;
+   ret["dcor.samp.mean"] = dcorSampMean;
    ret["df.test"] = dfp;
    ret["dh.test"] = dhp;
    ret["dnu"] = nu;

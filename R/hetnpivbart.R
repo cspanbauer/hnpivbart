@@ -108,6 +108,8 @@ hetnpivbart = function(Z, T, Y, X=NULL,
     thin = seq(1, nd*keepevery, keepevery)
     res$dnpart = res$dnpart[thin]
     res$dalpha = res$dalpha[thin]
+    res$dcov.samp.mean = res$dcov.samp.mean[thin]
+    res$dcor.samp.mean = res$dcor.samp.mean[thin]
     if(include_output){
         res$df1 = res$df[thin, ]
         res$df2 = res$dh[thin, ]
