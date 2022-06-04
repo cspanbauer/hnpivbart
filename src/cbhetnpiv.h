@@ -200,7 +200,7 @@ RcppExport SEXP cbhetnpiv(
 
    //-------------------------------------------------
    //-------------------------------------------------
-   // bart f setup
+   // bart f1 setup
    //--------------------------------------------------
    double *z2 = new double[n*pz*2];
    size_t start=0;
@@ -252,6 +252,7 @@ RcppExport SEXP cbhetnpiv(
    bmh.setprior(alpha,mybeta,tauh);
    double *ytemp = new double[n];  //y for h bart
    double *svec = new double[n];   // sigma_i for h bart
+   double *YY = new double[n]; //y_tilde auxiliary for probit or logistic BART
    bmh.setdata(pTx,nTx,Tx,ytemp,nc);
    //h burn-in
    Rcpp::NumericMatrix dhburn(1,1); //h draws on train
@@ -264,8 +265,16 @@ RcppExport SEXP cbhetnpiv(
       // h conditional -----------------------------------
       // update ----- 
       for(size_t j=0;j<n;j++) {
-         ytemp[j] = Y[j] - mYs - gammas * ZZ10;
-         svec[j] = sYs; 
+        if(type2==1) YY[j] = Y[j]; // continuous Y
+        else if(type2==2) { // binary Y with probit link
+          double sign;
+          if(Y[j]==1) sign=1.;
+          else sign=-1.;
+          YY[j] = sign*rtnorm(sign*bmh.f(j), 0., svec[j], gen);
+        }
+        //else { } // binary Y with logistic link, not implemented yet
+        ytemp[j] = YY[j] - mYs - gammas * ZZ10;
+        svec[j] = sYs; 
       }
       //draw -----
       bmh.draw(svec,gen);
@@ -298,7 +307,7 @@ RcppExport SEXP cbhetnpiv(
    //cout << betas << '\n';
    for(size_t i=0;i<n;i++) {
      yS[2*i] = T[i] - fs[i];
-     yS[2*i+1] = Y[i] - hs[i];
+     yS[2*i+1] = YY[i] - hs[i];
    }
    
    DpMuSigma dpmS(n,itheta,doDP);
@@ -365,7 +374,13 @@ RcppExport SEXP cbhetnpiv(
          mT = tmat[j][0]; mY = tmat[j][1]; sT = tmat[j][2]; gamma = tmat[j][3]; sY = tmat[j][4];
          if(!nullf) ZZ10 = (T[j] - mT - bmf.f(2*j))/sT;
          else ZZ10 = 0.;
-         ytemp[j] = Y[j] - mY - gamma * ZZ10;
+         if(type2==2) { // probit link draw auxiliary
+           double sign;
+           if(Y[j]==1) sign=1.;
+           else sign=-1.;
+           YY[j] = sign*rtnorm(sign*bmh.f(j), 0., svec[j], gen);
+         }
+         ytemp[j] = YY[j] - mY - gamma * ZZ10;
          svec[j] = sY; 
       }
       //draw -----
@@ -379,7 +394,7 @@ RcppExport SEXP cbhetnpiv(
           mT = tmat[j][0]; mY = tmat[j][1]; sT = tmat[j][2]; gamma = tmat[j][3]; sY = tmat[j][4];
           ytempf[2*j] = T[j] - mT;
           svecf[2*j] = sT;
-          R = (sT/gamma)*(Y[j] - mY - bmh.f(j)) - T[j] + mT;
+          R = (sT/gamma)*(YY[j] - mY - bmh.f(j)) - T[j] + mT;
           ytempf[2*j+1] = -R;
           svecf[2*j+1] = (sT*sY)/gamma;
         }
@@ -393,7 +408,7 @@ RcppExport SEXP cbhetnpiv(
       //update -----
       for(size_t j=0;j<n;j++) {
         yS[2*j] = T[j] - bmf.f(2*j);
-        yS[2*j+1] = Y[j] - bmh.f(j);
+        yS[2*j+1] = YY[j] - bmh.f(j);
       }
       //draw -----
       dpmS.draw(gen);
@@ -428,7 +443,7 @@ RcppExport SEXP cbhetnpiv(
                 dcor(draw,k) = dcov(draw,k)/(dsigma1(draw,k)*dsigma2(draw,k));
                 dgamma(draw,k) = tmat[k][3];
                 dsY(draw,k) = tmat[k][4];
-             dLL(draw,k) = bvnorm(T[k],Y[k],bmf.f(2*k),bmh.f(k),dsigma1(draw,k),dsigma2(draw,k),dcov(draw,k));
+                //  dLL(draw,k) = bvnorm(T[k],Y[k],bmf.f(2*k),bmh.f(k),dsigma1(draw,k),dsigma2(draw,k),dcov(draw,k));
               }
             }
          
@@ -475,7 +490,7 @@ RcppExport SEXP cbhetnpiv(
      ret["dcor"]=dcor;
      ret["dgamma"]=dgamma;
      ret["dsY"]=dsY;
-     ret["dLL"]=dLL;
+     // ret["dLL"]=dLL;
      ret["df"] = df;
      ret["dh"] = dh;
      ret["dfburn"] = dfburn;
@@ -502,6 +517,7 @@ RcppExport SEXP cbhetnpiv(
    if(svecf) delete [] svecf;
    if(ytemp) delete [] ytemp;
    if(svec) delete [] svec;
+   if(YY) delete [] YY;
    if(doprdx) {if(hp) delete [] hp;}
    if(doprdz) {if(fp) delete [] fp;}
    
