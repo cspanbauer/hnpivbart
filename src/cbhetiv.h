@@ -24,6 +24,8 @@ RcppExport SEXP cbhetiv(
    SEXP _xp,
    SEXP _T,
    SEXP _Y,
+   SEXP _type1,
+   SEXP _type2,
    SEXP _burn,
    SEXP _nd,
    SEXP _keepevery,
@@ -35,7 +37,8 @@ RcppExport SEXP cbhetiv(
    SEXP _power,
    SEXP _base,
    SEXP _tauf1,
-   SEXP _tauf2,
+   SEXP _tauf21,
+   SEXP _tauf22,
    SEXP _doDP,
    SEXP _v,
    SEXP _nu,
@@ -43,6 +46,7 @@ RcppExport SEXP cbhetiv(
    SEXP _ag,
    SEXP _priag,
    SEXP _centermeans,
+   SEXP _offset,
    SEXP _include_output,
    SEXP _f1s,
    SEXP _f2s,
@@ -98,6 +102,10 @@ RcppExport SEXP cbhetiv(
    double *Y = &Yv[0];
    size_t nY = Yv.size();
 
+   // type ----------
+   size_t type1 = Rcpp::as<size_t>(_type1);
+   size_t type2 = Rcpp::as<size_t>(_type2);
+   
    // burn, nd
    size_t burn = Rcpp::as<size_t>(_burn);
    size_t nd = Rcpp::as<size_t>(_nd);
@@ -112,7 +120,8 @@ RcppExport SEXP cbhetiv(
    double mybeta = Rcpp::as<double>(_power);
    double alpha = Rcpp::as<double>(_base);
    double tauf1 = Rcpp::as<double>(_tauf1);
-   double tauf2 = Rcpp::as<double>(_tauf2);
+   double tauf21 = Rcpp::as<double>(_tauf21);
+   double tauf22 = Rcpp::as<double>(_tauf22);
 
    //base prior -------------
    double v = Rcpp::as<double>(_v);
@@ -134,6 +143,7 @@ RcppExport SEXP cbhetiv(
    bool centermeans = Rcpp::as<bool>(_centermeans);
    //   size_t include_output = Rcpp::as<size_t>(_include_output);
    size_t include_output = 0;
+   double offset = Rcpp::as<double>(_offset);
    bool doDP = Rcpp::as<bool>(_doDP);
 
    //starting values
@@ -169,10 +179,11 @@ RcppExport SEXP cbhetiv(
    // print args
    if(!quiet){
      Rprintf("***burn, nd, burnf1, burnf2: %ld, %ld, %ld\n",burn,nd,burnf1,burnf2);
+     Rprintf("***offset: %lf\n",offset);
 
      Rprintf("*** Prior:\n");
      Rprintf("m1 (num trees stage 1), m2 (num trees stage 2), nc (num cut points), %ld, %ld, %ld\n",m1,m2,nc);
-     Rprintf("****power, base, tauf1, tauf2: %lf, %lf, %lf, %lf\n",mybeta,alpha,tauf1,tauf2);
+     Rprintf("****power, base, tauf1, tauf21, tauf22: %lf, %lf, %lf, %lf, %lf\n",mybeta,alpha,tauf1,tauf21,tauf22);
      Rprintf("v: %lf\n",v);
      Rprintf("nu: %lf\n",nu);
      Rprintf("a: %lf\n",a);
@@ -196,7 +207,21 @@ RcppExport SEXP cbhetiv(
      Rprintf("***other\n");
      Rprintf("printevery: %ld\n",printevery);
    }
-     
+
+   //-------------------------------------------------
+   //-------------------------------------------------
+   // bart probit auxiliary setup (if stage2==2)
+   //--------------------------------------------------
+   double *YY = new double[n];
+   for(size_t j=0;j<n;j++) {
+         if(type2==1) YY[j]=Y[j]-offset;
+         else if(type2==2) {
+           double sign;
+           if(Y[j]==1) sign=1.;
+           else sign=-1.;
+           YY[j] = sign*rtnorm(sign*(f2s[j]+(T[j]-f1s[j])*gammas/sTs), -sign*offset, sqrt(1.-gammas*gammas), gen);
+         }
+   }
 
    //-------------------------------------------------
    //-------------------------------------------------
@@ -219,75 +244,40 @@ RcppExport SEXP cbhetiv(
    double *ytempf1 = new double[n*2];  //y for h bart
    double *svecf1 = new double[n*2];   // sigma_i for h bart
    bmf1.setdata(pz,n*2,z2,ytempf1,nc);
-   Rcpp::NumericMatrix df1burn(1,1);   //h draws on train
-   if(include_output==1) df1burn(burnf1,n);
-   Dp::dv fhatb(n,0.0);
-   if(!nullf1){
-     if(burnf1) {
-       for(size_t i=0; i<n; i++) {
-         ytempf1[2*i] = T[i] - mTs;
-         svecf1[2*i] = sTs;
-         ytempf1[2*i+1] = T[i] - mTs;
-         svecf1[2*i+1] = sTs;
-       }
-       for(size_t i=0;i<burnf1;i++) {
-         if(i%printevery==0&!quiet) Rprintf("burnf1: done %d (out of %d)\n",i,burnf1);
-         bmf1.draw(svecf1,gen);
-         if(include_output==1) {for(size_t j=0;j<n;j++) df1burn(i,j) = bmf1.f(2*j);}
-         for(size_t j=0;j<n;j++) fhatb[j] = fhatb[j] + bmf1.f(2*j);
-       }
-       for(size_t j=0;j<n;j++) fhatb[j] = fhatb[j]/burnf1;
-     }
+   for(size_t i=0; i<n; i++) {
+     ytempf1[2*i] = T[i] - mTs;
+     svecf1[2*i] = sTs;
+     ytempf1[2*i+1] = T[i] - mTs;
+     svecf1[2*i+1] = sTs;
    }
+   bmf1.draw(svecf1,gen);  
    // bmf1 ouput storage
-   Rcpp::NumericMatrix df1(1,1); //f draws on train
-   if(include_output==1) df1(nd,n);
+   Rcpp::NumericMatrix df1(nd,n); //f draws on train
+
 
    //-------------------------------------------------
    //-------------------------------------------------
    // bart f2 setup
    //--------------------------------------------------
    heterbart<std::vector<double>> bmf2(m2);
-   bmf2.setprior(alpha,mybeta,tauf2);
+   bmf2.setprior(alpha,mybeta,tauf22,tauf21);
    double *ytempf2 = new double[n];  //y for h bart
    double *svecf2 = new double[n];   // sigma_i for h bart
    bmf2.setdata(px,n,x,ytempf2,T,nc);
 
-   //h burn-in   
-   Rcpp::NumericMatrix df2burn(1,1); //h draws on train
-   if(include_output==1) df2burn(burnf2,n);
    double ZZ1=0.0;
-   if(!nullf2){
-     for(size_t i=0;i<burnf2;i++) {
-       if(i%printevery==0&!quiet) Rprintf("burnf2: done %d (out of %d)\n",i,burnf2);
-
-       // f2 conditional -----------------------------------
-       // update ----- 
-       for(size_t j=0;j<n;j++) {
-         ytempf2[j] = Y[j] - mYs - f2s[j] - gammas * ZZ1;
-         svecf2[j] = sYs; 
-       }
-      //draw -----
-       bmf2.draw(svecf2,gen);
-       if(include_output==1){
-         for(size_t j=0;j<n;j++) {
-           df2burn(i,j) = bmf2.f(j);
-         }
-       }
-     }
-   }
-
-   
-   Rcpp::NumericMatrix df22(1,1);
-   Rcpp::NumericMatrix df21(1,1);
-   if(include_output==1){
-     df22(nd,n);
-     df21(nd,n);
-   }
+   // f2 conditional -----------------------------------
+   // update ----- 
+        for(size_t j=0;j<n;j++) {
+          ytempf2[j] = YY[j] - mYs - f2s[j] - gammas * ZZ1;
+          svecf2[j] = sYs; 
+        }
+   bmf2.draw(svecf2,gen);
+   Rcpp::NumericMatrix df22(nd,n);
+   Rcpp::NumericMatrix df21(nd,n);
    Rcpp::NumericMatrix df21p(nd,nxp);
    Rcpp::NumericMatrix df22p(nd,nxp);
    Rcpp::NumericMatrix df1p(nd,nzp);
-
 
    //--------------------------------------------------
    //--------------------------------------------------
@@ -306,7 +296,7 @@ RcppExport SEXP cbhetiv(
    //intialize using starting values
    for(size_t i=0;i<n;i++) {
       yS[2*i] = T[i] - f1s[i];
-      yS[2*i+1] = Y[i] - f2s[i];
+      yS[2*i+1] = YY[i] - f2s[i];
    }
    
    DpMuSigma dpmS(n,itheta,doDP);
@@ -356,21 +346,33 @@ RcppExport SEXP cbhetiv(
    //MCMC
    time_t tp;
    int time1 = time(&tp);
-   Dp::dvv tmat; 
+   Dp::dvv tmat;
+   //draw -----
+   dpmS.draw(gen); 
+   if(centermeans) dpmS.center(); 
    tmat = dpmS.thetaMatrix();
 
    double mT=mTs,mY=mYs,sT=sTs,gamma=gammas,sY=sYs; //temporary values for mean and Lchol of Sigma
    double B0,B1;
-   for(size_t i=0;i<(nd+burn);i++) {
-      if(i%printevery==0&!quiet) Rprintf("done %d (out of %d)\n",i,nd+burn);
+   for(size_t i=0;i<(nd*ke+burn);i++) {
+      if(i%printevery==0&!quiet) Rprintf("done %d (out of %d)\n",i,nd*ke+burn);
+      if(type2==2){
+        double sign;
+        for(size_t j=0;j<n;j++){
+          if(i>0) {mT = tmat[j][0]; mY = tmat[j][1]; sT = tmat[j][2]; gamma = tmat[j][3]; sY = tmat[j][4];}
+          if(Y[j]==1) sign=1.;
+          else sign=-1.;
+          YY[j] = sign*rtnorm(sign*(bmf2.getbeta0(j)+bmf2.getbeta1(j)*T[j]+(T[j]-bmf1.f(2*j))*gamma/sT), -sign*offset, sqrt(1.-gamma*gamma), gen);
+        }
+      }
       // f2 conditional -----------------------------------
       // update ----- 
       if(!nullf2){
         for(size_t j=0;j<n;j++) {
-          mT = tmat[j][0]; mY = tmat[j][1]; sT = tmat[j][2]; gamma = tmat[j][3]; sY = tmat[j][4];
+          if(i>0) {mT = tmat[j][0]; mY = tmat[j][1]; sT = tmat[j][2]; gamma = tmat[j][3]; sY = tmat[j][4];}
           if(!nullf1) ZZ1 = (T[j] - mT - bmf1.f(2*j))/sT;
-          else ZZ1 = 0.;
-          ytempf2[j] = Y[j] - mY - gamma * ZZ1;
+          else ZZ1 = 0.;     
+          ytempf2[j] = YY[j] - mY - gamma * ZZ1;
           svecf2[j] = sY; 
         }
       //draw -----
@@ -382,31 +384,118 @@ RcppExport SEXP cbhetiv(
       if(!nullf1){
         double R;
         for(size_t j=0; j<n; j++) {
-          mT = tmat[j][0]; mY = tmat[j][1]; sT = tmat[j][2]; gamma = tmat[j][3]; sY = tmat[j][4];
+          if(i>0) {mT = tmat[j][0]; mY = tmat[j][1]; sT = tmat[j][2]; gamma = tmat[j][3]; sY = tmat[j][4];}
           B0 = bmf2.getbeta0(j); B1 = bmf2.getbeta1(j);
           ytempf1[2*j] = T[j] - mT;
           svecf1[2*j] = sT;
-          R = (B1*sT+gamma)*(T[j]-mT)-sT*(Y[j]-mY-B0-B1*mT);
-          ytempf1[2*j+1] = R/gamma;
+          R = (sT/gamma)*(YY[j]-mY-B0-B1*T[j]) - T[j] + mT;
+          ytempf1[2*j+1] = -R;
           svecf1[2*j+1] = (sT*sY)/gamma;
           //         cout << "YT: " << ytempf[2*j] << std::endl;
         }
       }
       // draws -----
       bmf1.draw(svecf1,gen);
-      // Sigma conditional -----------------------------
-      //cout << "\n&&&&&&about to do Sigma\n";
-      //update -----
-      for(size_t j=0;j<n;j++) {
-        yS[2*j] = T[j] - bmf1.f(2*j);
-        yS[2*j+1] = Y[j] - bmf2.f(j);
+
+      if(type2==1){
+        // Sigma conditional -----------------------------
+        //cout << "\n&&&&&&about to do Sigma\n";
+        //update -----
+        for(size_t j=0;j<n;j++) {
+          yS[2*j] = T[j] - bmf1.f(2*j);
+          yS[2*j+1] = YY[j] - bmf2.getbeta0(j) - bmf2.getbeta1(j)*T[j];
+        }
+        //draw -----
+        dpmS.draw(gen); 
+        if(centermeans) dpmS.center(); 
+        tmat = dpmS.thetaMatrix();
       }
-      
-      //draw -----
-      dpmS.draw(gen);
-      if(centermeans) dpmS.center();
-      tmat = dpmS.thetaMatrix();
-      
+      else{
+         //update -----
+        for(size_t j=0;j<n;j++) {
+          yS[2*j] = T[j] - bmf1.f(2*j);
+          yS[2*j+1] = YY[j] - bmf2.getbeta0(j) - bmf2.getbeta1(j)*T[j];
+        }
+        // Sufficient statistics
+        double sumY1sq=0.0,sumY2sq=0.0,sumY1Y2=0.0;
+        for(size_t j=0;j<n;j++) {
+          sumY1sq += yS[2*j]*yS[2*j];
+          sumY2sq += yS[2*j+1]*yS[2*j+1];
+          sumY1Y2 += yS[2*j]*yS[2*j+1];
+        }   
+        // Draw rho
+        double sig;
+        if(i>0) sig=tmat[0][2];
+        else sig=sTs;
+        size_t rho_grid_size=2000;
+        Rcpp::NumericVector rho_grid(rho_grid_size-1);
+        Rcpp::NumericVector log_post_rho(rho_grid_size-1);
+        Rcpp::NumericVector prob_rho(rho_grid_size-1);
+        for(size_t g=0;g<rho_grid_size-1;g++) {
+          rho_grid[g]=0.001*((double)(g-999.));
+        }
+        double max_log_post_rho=log_rho_posterior(rho_grid[0],sumY1sq,sumY2sq,sumY1Y2,sig,1,1,n);
+        for(size_t g=0;g<rho_grid_size-1;g++) {
+          log_post_rho[g]=log_rho_posterior(rho_grid[g],sumY1sq,sumY2sq,sumY1Y2,sig,1.,1.,n);
+          if(log_post_rho[g]>max_log_post_rho) max_log_post_rho=log_post_rho[g];
+        }
+        double sum_exp_max=0.;
+        for(size_t g=0;g<rho_grid_size-1;g++){
+          sum_exp_max += exp(log_post_rho[g]-max_log_post_rho);
+        }
+        double lse=max_log_post_rho+log(sum_exp_max);
+        for(size_t g=0;g<rho_grid_size-1;g++){
+          prob_rho[g] = exp(log_post_rho[g]-lse);
+        }
+        size_t rho_index = 0;
+        double uu = gen.uniform();
+        double sum_prob = prob_rho[0];
+        //      cout << "UU: " << uu << '\n';
+        //        cout << "SP: " << sum_prob << '\n';
+        while(uu>sum_prob){
+          rho_index++;
+          sum_prob += prob_rho[rho_index];
+        }
+        //      cout << "Rho index: " << rho_index << '\n';
+        // Draw sigma_t
+        size_t sig_grid_size=1000;
+        Rcpp::NumericVector sig_grid(sig_grid_size-1);
+        Rcpp::NumericVector log_post_sig(sig_grid_size-1);
+        Rcpp::NumericVector prob_sig(sig_grid_size-1);
+        for(size_t g=0;g<sig_grid_size-1;g++) {
+          sig_grid[g]=0.01*((double)g+1.1);
+        }
+        double max_log_post_sig=log_sig_posterior(sig_grid[0],sumY1sq,sumY2sq,sumY1Y2,rho_grid[rho_index],0.,sqrt(10.),n);
+        for(size_t g=0;g<sig_grid_size-1;g++) {
+          log_post_sig[g]=log_sig_posterior(sig_grid[g],sumY1sq,sumY2sq,sumY1Y2,rho_grid[rho_index],0.,sqrt(10.),n);
+          if(log_post_sig[g]>max_log_post_sig) max_log_post_sig=log_post_sig[g];
+        }
+        sum_exp_max=0.;
+        for(size_t g=0;g<sig_grid_size-1;g++){
+          sum_exp_max += exp(log_post_sig[g]-max_log_post_sig);
+        }
+        lse=max_log_post_sig+log(sum_exp_max);
+        for(size_t g=0;g<sig_grid_size-1;g++){
+          prob_sig[g] = exp(log_post_sig[g]-lse);
+        }
+        size_t sig_index=0;
+        uu = gen.uniform();
+        sum_prob=prob_sig[0];
+        while(uu>sum_prob){
+          sig_index++;
+          sum_prob += prob_sig[sig_index];
+          //       cout << sig_index << '\n';
+        }
+        for(size_t j=0;j<n;j++){
+          tmat[j][0]=0.;
+          tmat[j][1]=0.;
+          tmat[j][2]=sig_grid[sig_index];
+          tmat[j][3]=rho_grid[rho_index];
+          if(tmat[j][3]==0) tmat[j][3]=.001;
+          tmat[j][4]=sqrt(1.-tmat[j][3]*tmat[j][3]);
+        }
+      }
+
       if(doprdx){
         bmf2.predict(pxp,nxp,xp,f22p,f21p);
       }
@@ -433,16 +522,14 @@ RcppExport SEXP cbhetiv(
              }
            }
 
-           if(include_output==1){
              for(size_t k=0;k<n;k++) {
                df21(draw,k) = bmf2.getbeta1(k);
-               df22(draw,k) = bmf2.getbeta0(k);
+               df22(draw,k) = bmf2.getbeta0(k)+offset;
              }
-           }
          
            if(doprdx) {
              for(size_t k=0;k<nxp;k++) {
-               df22p(draw,k) = f22p[k];
+               df22p(draw,k) = f22p[k]+offset;
                df21p(draw,k) = f21p[k];
              }
            }
@@ -454,11 +541,9 @@ RcppExport SEXP cbhetiv(
            }
 
          
-           if(include_output==1){
              for(size_t k=0;k<n;k++) {
                df1(draw,k) = bmf1.f(2*k);
              }
-           }
          }
       }
    }
@@ -475,8 +560,6 @@ RcppExport SEXP cbhetiv(
    ret["dnpart"]=dnpart;
    ret["dalpha"]=dalpha;
    if(include_output==1){
-     ret["df22"] = df22;
-     ret["df21"] = df21;
      ret["dcov"]=dcov;   
      ret["dsigma1"]=dsigma1;
      ret["dsigma2"]=dsigma2;
@@ -484,10 +567,10 @@ RcppExport SEXP cbhetiv(
      ret["dgamma"]=dgamma;
      ret["dsY"]=dsY;
      ret["dLL"]=dLL;
-     ret["df1"] = df1;
-     ret["df1burn"] = df1burn;
-     ret["df2burn"] = df2burn;
    }
+   ret["df22"] = df22;
+   ret["df21"] = df21;
+   ret["df1"] = df1;
    if(doprdz) ret["df1.test"] = df1p;
    if(doprdx){
      ret["df22.test"] = df22p;
@@ -502,6 +585,7 @@ RcppExport SEXP cbhetiv(
    if(z2) delete [] z2;
    if(ytempf2) delete [] ytempf2;
    if(svecf2) delete [] svecf2;
+   if(YY) delete [] YY;
    if(f1p) delete [] f1p;
    if(f21p) delete [] f21p;
    if(f22p) delete [] f22p;

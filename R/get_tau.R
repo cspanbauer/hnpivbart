@@ -17,15 +17,14 @@
 
 ## Gets tau values
 
-get_tau <- function(sigmaf1,sigmaf2,k,m1,m2,rT,rY){
-    
+get_tau <- function(sigmaf1,sigmaf2,k1,k2,m1,m2,rT,rY){
     if(is.na(sigmaf1)) {
-        tauf1 = rT/(2*k*sqrt(m1));
+        tauf1 = rT/(2*k1*sqrt(m1));
     } else {
         tauf1 = sigmaf1/sqrt(m1)
     }
     if(is.na(sigmaf2)) {
-        tauf2 = rY/(2*k*sqrt(m2));
+        tauf2 = rY/(2*k2*sqrt(m2));
     } else {
         tauf2 = sigmaf2/sqrt(m2)
     }

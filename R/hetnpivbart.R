@@ -20,11 +20,13 @@ hetnpivbart = function(Z, T, Y, X=NULL,
                        Z.test=NULL, 
                        T.test=NULL,
                        X.test=NULL,
+                       type1=1,type2=1,
                        burn=1000, nd=2000, burnf1=1000, burnf2=1000,
                        keepevery=10,
                        m1=200, m2=200, nc=100,
                        power=2, base=0.95,
-                       k=2, sigmaf1=NA, sigmaf2=NA,
+                       k1=2, k2=2,
+                       sigmaf1=NA, sigmaf2=NA,
                        doDP=TRUE, do.tsls=TRUE,
                        v=0.17, nu=2.004, a=0.016,
                        Imin=1, Imax=floor(0.1*n)+1, psi=0.5, gs=100,
@@ -42,13 +44,24 @@ hetnpivbart = function(Z, T, Y, X=NULL,
     
     ## Data checking
     TX <- check_build_training_data(Z,T,X,n,"hetnpivbart")
+    if(null.f2) TX <- X
+    print(dim(TX))
     ZXT.ls <- check_build_test_data(Z.test,T.test,X.test,"hetnpivbart")
-    Z.test <- ZXT.ls[[1]]; TX.test <- ZXT.ls[[2]] 
+    Z.test <- ZXT.ls[[1]];
+    if(null.f2) TX.test <- X.test
+    else TX.test <- ZXT.ls[[2]] 
     rm(ZXT.ls)
 
     ## Getting tau values (prior variance of terminal node value)
-    tau.ls <- get_tau(sigmaf1,sigmaf2,k,m1,m2,max(T)-min(T),max(Y)-min(Y))
-    tauf1 <- tau.ls[1]; tauf2 <- tau.ls[2]
+    if(type2==1) {
+        tau.ls <- get_tau(sigmaf1,sigmaf2,k1,k2,m1,m2,max(T)-min(T),max(Y)-min(Y))
+        tauf1 <- tau.ls[1]; tauf2 <- tau.ls[2]
+    }
+    else {
+        tau.ls <- get_tau(sigmaf1,sigmaf2,k1,k2,m1,m2,max(T)-min(T),6)
+        tauf1 <- tau.ls[1]; tauf2 <- tau.ls[2]
+        print(tauf2)
+    }
     rm(tau.ls)
 
     ## Get DPM priors
@@ -66,7 +79,7 @@ hetnpivbart = function(Z, T, Y, X=NULL,
     }
     else{
         tsls2.coef <- 0
-        L <- matrix(c(1,rep(stats::rnorm(1,0,.1),2),1),nrow=2)
+        L <- matrix(c(1,rep(0.01,2),1),nrow=2)
     }
 
     ## Starting values
@@ -75,7 +88,16 @@ hetnpivbart = function(Z, T, Y, X=NULL,
     rm(starts.ls)
 
     include_output <- 0
-   
+
+    ## Offset
+    if(type2==1) {
+        offset=mean(Y)
+    } else {
+        offset=qnorm(mean(Y))
+    }
+    print(qnorm(mean(Y)))
+    print(offset)
+
     res = .Call("cbhetnpiv",
                 t(Z),
                 t(Z.test),
@@ -83,6 +105,8 @@ hetnpivbart = function(Z, T, Y, X=NULL,
                 t(TX),
                 t(TX.test),
                 Y,
+                1,
+                type2,
                 burn,
                 nd,
                 keepevery,
@@ -96,6 +120,7 @@ hetnpivbart = function(Z, T, Y, X=NULL,
                 v, nu, a, #base prior
                 ag, priag, #alpha prior
                 centermeans,
+                offset,
                 include_output,
                 f1s, f2s,
                 mTs, mYs, sTs, gammas, sYs,
@@ -109,18 +134,20 @@ hetnpivbart = function(Z, T, Y, X=NULL,
     thin = 1:nd
     res$dnpart = res$dnpart[thin]
     res$dalpha = res$dalpha[thin]
+    res$dgamma = res$dgamma[thin]
+    res$dsT = res$dsT[thin]
     res$dcov.samp.mean = res$dcov.samp.mean[thin]
     res$dcor.samp.mean = res$dcor.samp.mean[thin]
+    res$df1 = res$df1[thin, ]
+    res$df2 = res$df2[thin, ]
     if(include_output){
-        res$df1 = res$df[thin, ]
-        res$df2 = res$dh[thin, ]
         res$dsigma1 = res$dsigma1[thin, ]
         res$dsigma2 = res$dsigma2[thin, ]
         res$dcov = res$dcov[thin, ]
         res$dLL = res$dLL[thin,]
     }
-    res$df1.test = res$df.test[thin,]
-    res$df2.test = res$dh.test[thin,]
+    res$df1.test = res$df1.test[thin,]
+    res$df2.test = res$df2.test[thin,]
     class(res) <- 'hetnpivbart'
     return(res)
 }

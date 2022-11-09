@@ -19,18 +19,20 @@ ivbart = function(Z, T, Y, X=NULL,
                   Z.test=NULL,
                   T.test=NULL, 
                   X.test=NULL,
+                  type1=1,type2=1,
                   burn=1000, nd=2000, burnf1=1000, burnf22=1000,
                   keepevery=10,
                   betabar=0, Abeta=NA,
                   m1=200, m2=200, nc=100,
                   power=2, base=0.95,
-                  k=2, sigmaf1=NA, sigmaf2=NA,
+                  k1=2, k2=2,
+                  sigmaf1=NA, sigmaf2=NA,
                   doDP=TRUE, do.tsls=TRUE,
                   v=0.17, nu=2.004, a=0.016,
                   Imin=1, Imax=floor(0.1*n)+1, psi=0.5, gs=100,
                   centermeans=TRUE,
                   n=length(Y),
-                  f1s = rep(0, n), f22s = rep(0, n),
+                  f1s = NULL, f22s = NULL,
                   mTs=0, mYs=0,
                   betas=NA, sTs=NA, sYs=NA, gammas=NA,
                   null.f1=FALSE, null.f21=FALSE,
@@ -46,11 +48,15 @@ ivbart = function(Z, T, Y, X=NULL,
     rm(ZX.ls)
 
     ## Getting tau values (prior varince of terminal node value)
-    tau.ls <- get_tau(sigmaf1,sigmaf2,k,m1,m2,max(T)-min(T),max(Y)-min(Y))
-    tauf1 <- tau.ls[1]; tauf22 <- tau.ls[2]
+    if(type2==1) {
+        tau.ls <- get_tau(sigmaf1,sigmaf2,k1,k2,m1,m2,max(T)-min(T),max(Y)-min(Y))
+        tauf1 <- tau.ls[1]; tauf2 <- tau.ls[2]; Abeta <- tauf2/(max(T)-min(T))
+    }
+    else {
+        tau.ls <- get_tau(sigmaf1,sigmaf2,k1,k2,m1,m2,max(T)-min(T),6)
+        tauf1 <- tau.ls[1]; tauf2 <- tau.ls[2]; Abeta <- tauf2/(max(T)-min(T))
+    }
     rm(tau.ls)
-    ## Get variance of beta prior
-    if(is.na(Abeta)) Abeta=1/(sqrt(m2)*tauf22/(max(T)-min(T)))
 
     ## Get DPM priors
     priold = getaprior(length(Y),Imin,Imax,psi,gs)
@@ -70,10 +76,21 @@ ivbart = function(Z, T, Y, X=NULL,
         L <- matrix(c(1,rep(stats::rnorm(1,0,.1),2),1),nrow=2)
     }
 
+    
+    ## Offset
+    if(type2==1)
+        offset=mean(Y)
+    else if(type2==2)
+        offset=qnorm(mean(Y))
+
     ## Starting values
     starts.ls <- get_starting_values(betas,sTs,sYs,gammas,L,null.f21)
     betas=starts.ls[1]; sTs=starts.ls[2]; sYs=starts.ls[3]; gammas=starts.ls[4]
+    if(length(f1s)==0) f1s=rep(offset,n)
+    if(length(f22s)==0) f22s=rep(offset,n)
     rm(starts.ls)
+
+    
 
     include_output <- 0
     
@@ -84,6 +101,8 @@ ivbart = function(Z, T, Y, X=NULL,
                 t(X.test),
                 T,
                 Y,
+                type1,
+                type2,
                 burn,
                 nd,
                 keepevery,
@@ -92,12 +111,13 @@ ivbart = function(Z, T, Y, X=NULL,
                 m1, m2, nc,
                 power, base,
                 tauf1,
-                tauf22,
+                tauf2,
                 betabar, Abeta,
                 doDP,
                 v, nu, a, #base prior
                 ag, priag, #alpha prior
                 centermeans,
+                offset,
                 include_output,
                 f1s, f22s,
                 betas, mTs, mYs, sTs, gammas, sYs,

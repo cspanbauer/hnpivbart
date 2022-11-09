@@ -19,12 +19,14 @@ npivbart = function(Z, T, Y, X=NULL,
                     Z.test=NULL,
                     T.test=NULL,
                     X.test=NULL,
+                    type1=1,type2=1,
                     burn=1000, nd=2000,
                     burnf1=1000, burnf21=1000, burnf22=1000,
                     keepevery=10,
                     m1=200, m2=200, nc=100,
                     power=2, base=0.95,                    
-                    k=2, sigmaf1=NA, sigmaf2=NA,
+                    k1=2, k2=2,
+                    sigmaf1=NA, sigmaf2=NA,
                     doDP=TRUE, do.tsls=TRUE,
                     v=0.17, nu=2.004, a=0.016,
                     Imin=1, Imax=floor(0.1*n)+1, psi=0.5, gs=100,
@@ -46,8 +48,14 @@ npivbart = function(Z, T, Y, X=NULL,
     rm(ZXT.ls)
 
     ## Getting tau values (prior variance of terminal node value)
-    tau.ls <- get_tau(sigmaf1,sigmaf2,k,m1,m2,max(T)-min(T),max(Y)-min(Y))
-    tauf1 <- tau.ls[1]; tauf21 <- 0.5*tau.ls[2]; tauf22 <- 0.5*tau.ls[2]
+    if(type2==1) {
+        tau.ls <- get_tau(sigmaf1,sigmaf2,k1,k2,m1,m2,max(T)-min(T),max(Y)-min(Y))
+        tauf1 <- tau.ls[1]; tauf21 <- tau.ls[2]; tauf22 <- tau.ls[2];
+    }
+    else {
+        tau.ls <- get_tau(sigmaf1,sigmaf2,k1,k2,m1,m2,max(T)-min(T),6)
+        tauf1 <- tau.ls[1]; tauf21 <- tau.ls[2]; tauf22 <- tau.ls[2];
+    }
     rm(tau.ls)
 
     ## Get DPM priors
@@ -74,6 +82,12 @@ npivbart = function(Z, T, Y, X=NULL,
     rm(starts.ls)
 
     include_output <- 0
+
+    ## Offset
+    if(type2==1)
+        offset=mean(Y)
+    else if(type2==2)
+        offset=qnorm(mean(Y))
     
     res = .Call("cbnpiv",
                 t(Z),
@@ -83,6 +97,8 @@ npivbart = function(Z, T, Y, X=NULL,
                 T,
                 T.test,
                 Y,
+                type1,
+                type2,
                 burn,
                 nd,
                 keepevery,
@@ -98,6 +114,7 @@ npivbart = function(Z, T, Y, X=NULL,
                 v, nu, a, #base prior
                 ag, priag, #alpha prior
                 centermeans,
+                offset,
                 include_output,
                 f1s, f21s, f22s,
                 mTs, mYs, sTs, gammas, sYs,

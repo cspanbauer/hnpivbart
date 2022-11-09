@@ -1,6 +1,6 @@
-o---
+---
 title: "Overview of Heterogenous Nonlinear IV w/ BART"
-output: rmarkdown::html_vignette
+output: rmarkdown::pdf_vignette
 vignette: >
   %\VignetteIndexEntry{Overview of Heterogenous Nonlinear IV w/ BART}
   %\VignetteEngine{knitr::rmarkdown}
@@ -37,11 +37,11 @@ set.seed(32687)
 ```
 
 ```{r simulation_setup}        
-n <- 1000
-nd <- 1000
-nb <- 2500
+n <- 100
+nd <- 100
+nb <- 250
 nb0 <- 1
-ke <- 5
+ke <- 1
 pZ <- 10
 
 sig. <- matrix(c(1,rep(0.7,2),1),nrow=2)
@@ -69,7 +69,7 @@ First, the data is simulated according to the specifications in Spanbauer and Pa
     
 ```{r simulate_data_GL}
 Y. <- T. + ifelse(X.[,1]<0,0,1) + chl.[1,2]*stdNorm[,1] + chl.[2,2]*stdNorm[,2]
-muY. <- mean(Y.)
+muY. <- 0#mean(Y.)
 Y. <- Y.-muY.
 dat <- data.frame(cbind(Y.,T.,Z.,X.))
 colnames(dat) <- c('Y','T',paste0('Z',1:pZ),paste0('X',1:10))
@@ -121,7 +121,7 @@ Now the line is replaced with the cosine function so that $f_2(t_i,\mathbf{x}_i)
     
 ```{r simulate_data_GN}
 Y. <- cos(T.) + ifelse(X.[,1]<0,0,1) + chl.[1,2]*stdNorm[,1] + chl.[2,2]*stdNorm[,2]
-muY. <- mean(Y.)
+muY. <- 0#mean(Y.)
 Y. <- Y.-muY.
 dat <- data.frame(cbind(Y.,T.,Z.,X.))
 colnames(dat) <- c('Y','T',paste0('Z',1:pZ),paste0('X',1:10))
@@ -166,7 +166,7 @@ The original line is now interacting with $\mathbf{x}_{1i}$ so that $f_2(t_i,\ma
     
 ```{r simulate_data_HL}
 Y. <- T. * ifelse(X.[,1]<0,0,1) + chl.[1,2]*stdNorm[,1] + chl.[2,2]*stdNorm[,2]
-muY. <- mean(Y.)
+muY. <- 0#mean(Y.)
 Y. <- Y.-muY.
 dat <- data.frame(cbind(Y.,T.,Z.,X.))
 colnames(dat) <- c('Y','T',paste0('Z',1:pZ),paste0('X',1:10))
@@ -211,7 +211,7 @@ The nonlinear cosine function is now multiplicative with $\mathbf{x}_{1i}$ so th
     
 ```{r simulate_data_HN}
 Y. <- cos(T.) * ifelse(X.[,1]<0,0,1) + chl.[1,2]*stdNorm[,1] + chl.[2,2]*stdNorm[,2]
-muY. <- mean(Y.)
+muY. <- 0#mean(Y.)
 Y. <- Y.-muY.
 dat <- data.frame(cbind(Y.,T.,Z.,X.))
 colnames(dat) <- c('Y','T',paste0('Z',1:pZ),paste0('X',1:10))

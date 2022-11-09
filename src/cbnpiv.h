@@ -25,6 +25,8 @@ RcppExport SEXP cbnpiv(
    SEXP _T,
    SEXP _Tp,
    SEXP _Y,
+   SEXP _type1,
+   SEXP _type2,
    SEXP _burn,
    SEXP _nd,
    SEXP _keepevery,
@@ -46,6 +48,7 @@ RcppExport SEXP cbnpiv(
    SEXP _ag,
    SEXP _priag,
    SEXP _centermeans,
+   SEXP _offset,
    SEXP _include_output,
    SEXP _fs,
    SEXP _h0s,
@@ -107,7 +110,9 @@ RcppExport SEXP cbnpiv(
    Rcpp::NumericVector Tpv(_Tp);
    double *Tp = &Tpv[0];
    size_t nTp = Tpv.size();
-   
+
+   size_t type1 = Rcpp::as<size_t>(_type1);
+   size_t type2 = Rcpp::as<size_t>(_type2);
    // burn, nd
    size_t burn = Rcpp::as<size_t>(_burn);
    size_t nd = Rcpp::as<size_t>(_nd);
@@ -144,6 +149,7 @@ RcppExport SEXP cbnpiv(
 
    //should the means be centered after each DpMuSigma draw
    bool centermeans = Rcpp::as<bool>(_centermeans);
+   double offset = Rcpp::as<double>(_offset);
    size_t include_output = Rcpp::as<size_t>(_include_output);
    include_output = 0;
    bool doDP = Rcpp::as<bool>(_doDP);
@@ -216,6 +222,25 @@ RcppExport SEXP cbnpiv(
 
    //-------------------------------------------------
    //-------------------------------------------------
+   // bart probit auxiliary setup (if stage2==2)
+   //--------------------------------------------------
+   
+   double *YY = new double[n]; //y_tilde auxiliary for probit or logistic BART
+   for(size_t j=0;j<n;j++) {
+         if(type2==1) {
+           YY[j] = Y[j]-offset;
+         }
+         else if(type2==2){
+           double sign;
+           sYs = sqrt(1-gammas*gammas);
+           if(Y[j]==1) sign=1.;
+           else sign=-1.;
+           YY[j] = sign*rtnorm(sign*(h0s[j]+(T[j]-fs[j])*gammas/sTs), -sign*offset, sqrt(1-gammas*gammas), gen);
+         }
+   }
+   
+   //-------------------------------------------------
+   //-------------------------------------------------
    // bart f setup
    //--------------------------------------------------
    double *z2 = new double[n*pz*2];
@@ -235,26 +260,13 @@ RcppExport SEXP cbnpiv(
    double *ytempf = new double[2*n];  //y for h bart
    double *svecf = new double[2*n];   // sigma_i for h bart
    bmf.setdata(pz,2*n,z2,ytempf,nc);
-   Rcpp::NumericMatrix dfburn(1,1);
-   if(include_output==1) dfburn(burnf,n); //h draws on train   
-   Dp::dv fhatb(n,0.0);
-   if(!nullf){
-     if(burnf) {
-       for(size_t i=0; i<n; i++) {
-	 ytempf[2*i] = T[i] - mTs;
-	 svecf[2*i] = sTs;
-	 ytempf[2*i+1] = T[i] - mTs;
-	 svecf[2*i+1] = sTs;
-       }
-       for(size_t i=0;i<burnf;i++) {
-         if(i%printevery==0&!quiet) Rprintf("burnf: done %d (out of %d)\n",i,burnf);
-         bmf.draw(svecf,gen);
-         if(include_output==1) for(size_t j=0;j<n;j++) dfburn(i,j) = bmf.f(2*j);
-         for(size_t j=0;j<n;j++) fhatb[j] = fhatb[j] + bmf.f(2*j);
-       }
-       for(size_t j=0;j<n;j++) fhatb[j] = fhatb[j]/burnf;
-     }
+   for(size_t i=0; i<n; i++) {
+     ytempf[2*i] = T[i] - mTs;
+     svecf[2*i] = sTs;
+     ytempf[2*i+1] = T[i] - mTs;
+     svecf[2*i+1] = sTs;
    }
+   bmf.draw(svecf,gen);
    // bmf ouput storage
    Rcpp::NumericMatrix df(nd,n);
    //   if(include_output==1) df(nd,n); //f draws on train
@@ -277,27 +289,12 @@ RcppExport SEXP cbnpiv(
    Rcpp::NumericMatrix dh0burn(1,1);
    if(include_output==1) dh0burn(burnh0,n); //h draws on train
    double ZZ10=0.0;
-   if(!nullh0){
-     for(size_t i=0;i<burnh0;i++) {
-       if(i%printevery==0&!quiet) Rprintf("burnh0: done %d (out of %d)\n",i,burnh0);
-       
-       // h0 conditional -----------------------------------
-       // update ----- 
-       for(size_t j=0;j<n;j++) {
-         ZZ10 = (T[j] - mTs - bmf.f(2*j))/sTs;
-         ytemp0[j] = Y[j] - mYs - h1s[j] - gammas * ZZ10;
-         svec0[j] = sYs; 
-       }
-       //draw -----
-       bmh0.draw(svec0,gen);
-       
-       if(include_output==1){
-         for(size_t j=0;j<n;j++) {
-           dh0burn(i,j) = bmh0.f(j);
-         }
-       }
-     }
+   for(size_t j=0;j<n;j++) {
+     ZZ10 = (T[j] - mTs - bmf.f(2*j))/sTs;
+     ytemp0[j] = YY[j] - mYs - gammas * ZZ10;
+     svec0[j] = sYs;
    }
+   bmh0.draw(svec0,gen);
    Rcpp::NumericMatrix dh0(1,1);
    if(include_output==1) dh0(nd,n); //h draws on train
    Rcpp::NumericMatrix dh0p(nd,nTp);
@@ -312,31 +309,15 @@ RcppExport SEXP cbnpiv(
    double *ytemp1 = new double[n];  //y for h bart
    double *svec1 = new double[n];   // sigma_i for h bart
    bmh1.setdata(px,n,x,ytemp1,nc);
-   
-   //h1 burn-in
-   Rcpp::NumericMatrix dh1burn(1,1);
-   if(include_output==1) dh1burn(burnh1,n); //h draws on train
    double ZZ11 = 0.0;
    if(doh1){
-     for(size_t i=0;i<burnh1;i++) {
-       if(i%printevery==0&!quiet) Rprintf("burnh1: done %d (out of %d)\n",i,burnh1);
-       
-       // h1 conditional -----------------------------------
-       // update ----- 
-       for(size_t j=0;j<n;j++) {
-         ZZ11 = (T[j] - mTs - bmf.f(2*j))/sTs;
-         ytemp1[j] = Y[j] - mYs - h0s[j] - gammas * ZZ11;
-         svec1[j] = sYs; 
-       }
-       //draw -----
-       bmh1.draw(svec1,gen);       
-       if(include_output==1) {
-         for(size_t j=0;j<n;j++) {
-           dh1burn(i,j) = bmh1.f(j);
-         }
-       }
+     for(size_t j=0;j<n;j++) {
+       ZZ11 = (T[j] - mTs - bmf.f(2*j))/sTs;
+       ytemp1[j] = YY[j] - mYs - h0s[j] - gammas * ZZ11;
+       svec1[j] = sYs; 
      }
    }
+   bmh1.draw(svec1,gen);
    Rcpp::NumericMatrix dh1(1,1);
    if(include_output==1) dh1(nd,n); //h draws on train
    Rcpp::NumericMatrix dh1p(nd,nxp);
@@ -428,26 +409,34 @@ RcppExport SEXP cbnpiv(
    double mT=mTs,mY=mYs,sT=sTs,gamma=gammas,sY=sYs; //temporary values for mean and Lchol of Sigma
    for(size_t i=0;i<(nd+burn);i++) {
       if(i%printevery==0&!quiet) Rprintf("done %d (out of %d)\n",i,nd+burn);
-
+      if(type2==2) {
+        for(size_t j=0;j<n;j++){
+          if(i>0) {mT = tmat[j][0]; mY = tmat[j][1]; sT = tmat[j][2]; gamma = tmat[j][3]; sY = tmat[j][4];    }
+          double sign;
+          if(Y[j]==1) sign=1.;
+          else sign=-1.;
+          YY[j] = sign*rtnorm(sign*(bmh0.f(j)+bmh1.f(j)+(T[j]-bmf.f(2*j))*gamma/sT), -sign*offset, sqrt(1-gamma*gamma), gen);
+        }
+      }
       // h0 conditional -----------------------------------
       if(!nullh0) {
       // update ----- 
-	for(size_t j=0;j<n;j++) {
-	  mT = tmat[j][0]; mY = tmat[j][1]; sT = tmat[j][2]; gamma = tmat[j][3]; sY = tmat[j][4];
-	  ZZ10 = (T[j] - mT - bmf.f(2*j))/sT;
-	  ytemp0[j] = Y[j] - mY - bmh1.f(j) - gamma * ZZ10;	  
-	  svec0[j] = sY; 
-	}      
-	//draw -----
-	bmh0.draw(svec0,gen);
+          for(size_t j=0;j<n;j++) {
+            if(i>0) {mT = tmat[j][0]; mY = tmat[j][1]; sT = tmat[j][2]; gamma = tmat[j][3]; sY = tmat[j][4];    }
+            ZZ10 = (T[j] - mT - bmf.f(2*j))/sT;
+            ytemp0[j] = YY[j] - mY - bmh1.f(j) - gamma * ZZ10;	  
+            svec0[j] = sY; 
+          }      
+        //draw -----
+        bmh0.draw(svec0,gen);
       }
       
       // h1 conditional -----------------------------------
       if(doh1) {
         for(size_t j=0;j<n;j++) {
-          mT = tmat[j][0]; mY = tmat[j][1]; sT = tmat[j][2]; gamma = tmat[j][3]; sY = tmat[j][4];
+          if(i>0){mT = tmat[j][0]; mY = tmat[j][1]; sT = tmat[j][2]; gamma = tmat[j][3]; sY = tmat[j][4];}
           ZZ11 = (T[j] - mT - bmf.f(2*j))/sT;
-          ytemp1[j] = Y[j] - mY - bmh0.f(j) - gamma * ZZ11;
+          ytemp1[j] = YY[j] - mY - bmh0.f(j) - gamma * ZZ11;
           svec1[j] = sY; 
         }
         //draw -----
@@ -459,10 +448,10 @@ RcppExport SEXP cbnpiv(
         // update -----
         double R;
         for(size_t j=0; j<n; j++) {
-          mT = tmat[j][0]; mY = tmat[j][1]; sT = tmat[j][2]; gamma = tmat[j][3]; sY = tmat[j][4];
+          if(i>0){mT = tmat[j][0]; mY = tmat[j][1]; sT = tmat[j][2]; gamma = tmat[j][3]; sY = tmat[j][4];}
           ytempf[2*j] = T[j] - mT;
           svecf[2*j] = sT;
-          R = (sT/gamma)*(Y[j] - mY - bmh0.f(j) - bmh1.f(j)) - T[j] + mT;	 
+          R = (sT/gamma)*(YY[j] - mY - bmh0.f(j) - bmh1.f(j)) - T[j] + mT;	 
           ytempf[2*j+1] = -R;
           svecf[2*j+1] = (sT*sY)/gamma;
         }
@@ -470,16 +459,102 @@ RcppExport SEXP cbnpiv(
         bmf.draw(svecf,gen);
       }
       
+      if(type2==1){
       // Sigma conditional -----------------------------
       //update -----
       for(size_t j=0;j<n;j++) {
         yS[2*j] = T[j] - bmf.f(2*j);
-        yS[2*j+1] = Y[j] - bmh0.f(j) - bmh1.f(j);
-      }
+        yS[2*j+1] = YY[j] - bmh0.f(j) - bmh1.f(j);
+      }      
       //draw -----
       dpmS.draw(gen);
       if(centermeans) dpmS.center();
       tmat = dpmS.thetaMatrix();
+      }
+      else{
+         //update -----
+        for(size_t j=0;j<n;j++) {
+          yS[2*j] = T[j] - bmf.f(2*j);
+          yS[2*j+1] = YY[j] - bmh0.f(j) - bmh1.f(j);
+        }
+        // Sufficient statistics
+        double sumY1sq=0.0,sumY2sq=0.0,sumY1Y2=0.0;
+        for(size_t j=0;j<n;j++) {
+          sumY1sq += yS[2*j]*yS[2*j];
+          sumY2sq += yS[2*j+1]*yS[2*j+1];
+          sumY1Y2 += yS[2*j]*yS[2*j+1];
+        }   
+        // Draw rho
+        double sig;
+        if(i>0) sig=tmat[0][2];
+        else sig=sTs;
+        size_t rho_grid_size=2000;
+        Rcpp::NumericVector rho_grid(rho_grid_size-1);
+        Rcpp::NumericVector log_post_rho(rho_grid_size-1);
+        Rcpp::NumericVector prob_rho(rho_grid_size-1);
+        for(size_t g=0;g<rho_grid_size-1;g++) {
+          rho_grid[g]=0.001*((double)(g-999.));
+        }
+        double max_log_post_rho=log_rho_posterior(rho_grid[0],sumY1sq,sumY2sq,sumY1Y2,sig,1,1,n);
+        for(size_t g=0;g<rho_grid_size-1;g++) {
+          log_post_rho[g]=log_rho_posterior(rho_grid[g],sumY1sq,sumY2sq,sumY1Y2,sig,1.,1.,n);
+          if(log_post_rho[g]>max_log_post_rho) max_log_post_rho=log_post_rho[g];
+        }
+        double sum_exp_max=0.;
+        for(size_t g=0;g<rho_grid_size-1;g++){
+          sum_exp_max += exp(log_post_rho[g]-max_log_post_rho);
+        }
+        double lse=max_log_post_rho+log(sum_exp_max);
+        for(size_t g=0;g<rho_grid_size-1;g++){
+          prob_rho[g] = exp(log_post_rho[g]-lse);
+        }
+        size_t rho_index = 0;
+        double uu = gen.uniform();
+        double sum_prob = prob_rho[0];
+        //      cout << "UU: " << uu << '\n';
+        //        cout << "SP: " << sum_prob << '\n';
+        while(uu>sum_prob){
+          rho_index++;
+          sum_prob += prob_rho[rho_index];
+        }
+        //      cout << "Rho index: " << rho_index << '\n';
+        // Draw sigma_t
+        size_t sig_grid_size=1000;
+        Rcpp::NumericVector sig_grid(sig_grid_size-1);
+        Rcpp::NumericVector log_post_sig(sig_grid_size-1);
+        Rcpp::NumericVector prob_sig(sig_grid_size-1);
+        for(size_t g=0;g<sig_grid_size-1;g++) {
+          sig_grid[g]=0.01*((double)g+1.1);
+        }
+        double max_log_post_sig=log_sig_posterior(sig_grid[0],sumY1sq,sumY2sq,sumY1Y2,rho_grid[rho_index],0.,sqrt(10.),n);
+        for(size_t g=0;g<sig_grid_size-1;g++) {
+          log_post_sig[g]=log_sig_posterior(sig_grid[g],sumY1sq,sumY2sq,sumY1Y2,rho_grid[rho_index],0.,sqrt(10.),n);
+          if(log_post_sig[g]>max_log_post_sig) max_log_post_sig=log_post_sig[g];
+        }
+        sum_exp_max=0.;
+        for(size_t g=0;g<sig_grid_size-1;g++){
+          sum_exp_max += exp(log_post_sig[g]-max_log_post_sig);
+        }
+        lse=max_log_post_sig+log(sum_exp_max);
+        for(size_t g=0;g<sig_grid_size-1;g++){
+          prob_sig[g] = exp(log_post_sig[g]-lse);
+        }
+        size_t sig_index=0;
+        uu = gen.uniform();
+        sum_prob=prob_sig[0];
+        while(uu>sum_prob){
+          sig_index++;
+          sum_prob += prob_sig[sig_index];
+          //       cout << sig_index << '\n';
+        }
+        for(size_t j=0;j<n;j++){
+          tmat[j][0]=0.;
+          tmat[j][1]=0.;
+          tmat[j][2]=sig_grid[sig_index];
+          tmat[j][3]=rho_grid[rho_index];
+          tmat[j][4]=sqrt(1-tmat[j][3]*tmat[j][3]);
+        }
+      }
 
       // Predictions
       if(doprdT){
@@ -516,7 +591,7 @@ RcppExport SEXP cbnpiv(
 	 
           if(include_output==1){
             for(size_t k=0;k<n;k++) {
-              dh0(draw,k) = bmh0.f(k);
+              dh0(draw,k) = bmh0.f(k)+offset;
             }
 	   
             for(size_t k=0;k<n;k++) {
@@ -531,7 +606,7 @@ RcppExport SEXP cbnpiv(
 	 
           if(doprdT){
             for(size_t k=0;k<nTp;k++) {
-              dh0p(draw,k) = h0p[k];
+              dh0p(draw,k) = h0p[k]+offset;
             }
           }
           if(doprdX2){
@@ -549,7 +624,6 @@ RcppExport SEXP cbnpiv(
    }
    int time2 = time(&tp);
    if(!quiet) Rprintf("time: %d\n",time2-time1);
-
 
    //--------------------------------------------------
    // clear RNG at end
@@ -572,9 +646,6 @@ RcppExport SEXP cbnpiv(
      ret["dLL"]=dLL;
      ret["dh0"] = dh0;
      ret["dh1"] = dh1;
-     ret["dfburn"] = dfburn;
-     ret["dh0burn"] = dh0burn;
-     ret["dh1burn"] = dh1burn;
    }
    ret["df.test"] = dfp;
    ret["dh0.test"] = dh0p;
@@ -594,6 +665,7 @@ RcppExport SEXP cbnpiv(
    if(svec0) delete [] svec0;
    if(ytemp1) delete [] ytemp1;
    if(svec1) delete [] svec1;
+   if(YY) delete [] YY;
    if(doprdT) {if(h0p) delete [] h0p;}
    if(doprdX2) {if(h1p) delete [] h1p;}
    if(doprdz) {if(fp) delete [] fp;}

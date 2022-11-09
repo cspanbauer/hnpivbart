@@ -140,8 +140,8 @@ bool bd(tree<std::vector<double>>& x, xinfo& xi, dinfo& di, pinfo& pi, double si
     double uu = gen.uniform();
     bool dostep = (alpha > 0) && (log(uu) < lalpha);
     if(dostep) {
-      thetal = drawnodetheta(nl,syl,swl,swyl,swwl,pi.tau,sigma,gen);
-      thetar = drawnodetheta(nr,syr,swr,swyr,swwr,pi.tau,sigma,gen);
+      thetal = drawnodetheta(nl,syl,swl,swyl,swwl,pi.tau,pi.tau2,sigma,gen);
+      thetar = drawnodetheta(nr,syr,swr,swyr,swwr,pi.tau,pi.tau2,sigma,gen);
       x.birthp(nx,v,c,thetal,thetar);
       return true;
     } else {
@@ -174,7 +174,7 @@ bool bd(tree<std::vector<double>>& x, xinfo& xi, dinfo& di, pinfo& pi, double si
     //try metrop
     std::vector<double> theta;
     if(log(gen.uniform()) < lalpha) {
-      theta = drawnodetheta(nl+nr,syl+syr,swl+swr,swyl+swyr,swwl+swwr,pi.tau,sigma,gen);
+      theta = drawnodetheta(nl+nr,syl+syr,swl+swr,swyl+swyr,swwl+swwr,pi.tau,pi.tau2,sigma,gen);
       x.deathp(nx,theta);
       return true;
     } else {

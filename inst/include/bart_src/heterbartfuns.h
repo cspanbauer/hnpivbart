@@ -26,7 +26,7 @@ void hetergetsuff(tree<std::vector<double>>& x, typename tree<std::vector<double
 double heterdrawnodetheta(double sr, double sry, double tau, rn& gen);
 //--------------------------------------------------
 // draw two mu from post (Linear)
-std::vector<double> heterdrawnodetheta(double sr, double sry, double srw, double srwy, double srww, double tau, rn& gen);
+std::vector<double> heterdrawnodetheta(double sr, double sry, double srw, double srwy, double srww, double tau, double tau2, rn& gen);
 //--------------------------------------------------
 //get sufficients stats for all bottom nodes, this way just loop through all the data once.
 void heterallsuff(tree<double>& x, xinfo& xi, dinfo& di, tree<double>::npv& bnv, std::vector<double>& srv, std::vector<double>& sryv,double *sigma);
@@ -168,12 +168,12 @@ double heterdrawnodetheta(double sr, double sry, double tau, rn& gen)
 }
 //--------------------------------------------------
 // draw two mu from post (Linear)
-std::vector<double> heterdrawnodetheta(double sr, double sry, double srw, double srwy, double srww, double tau, rn& gen)
+std::vector<double> heterdrawnodetheta(double sr, double sry, double srw, double srwy, double srww, double tau, double tau2, rn& gen)
 {
   double t2 = tau*tau;
   double inv_V00 = sr + 1./t2;
   double inv_V01 = srw;
-  double inv_V11 = srww + 1./t2;
+  double inv_V11 = srww + 1./(tau2*tau2);
   double det_invV = inv_V00*inv_V11-inv_V01*inv_V01;
   double V00 = (1./det_invV)*inv_V11;
   double V11 = (1./det_invV)*inv_V00;
@@ -293,7 +293,7 @@ void heterdrtheta(tree<std::vector<double>>& t, xinfo& xi, dinfo& di, pinfo& pi,
   std::vector<double> srwwv;
   heterallsuff(t,xi,di,bnv,srv,sryv,srwv,srwyv,srwwv,sigma);
   for(tree<std::vector<double>>::npv::size_type i=0;i!=bnv.size();i++)
-    bnv[i]->settheta(heterdrawnodetheta(srv[i],sryv[i],srwv[i],srwyv[i],srwwv[i],pi.tau,gen));
+    bnv[i]->settheta(heterdrawnodetheta(srv[i],sryv[i],srwv[i],srwyv[i],srwwv[i],pi.tau,pi.tau2,gen));
 }
 
 #endif

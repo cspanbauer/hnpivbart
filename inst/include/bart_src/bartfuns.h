@@ -30,7 +30,7 @@ double lh(size_t n, double sy, double sigma, double tau);
 double drawnodetheta(size_t n, double sy, double tau, double sigma, rn& gen);
 //--------------------------------------------------
 //draw two mu (linear) from post
-std::vector<double> drawnodetheta(size_t n, double sy, double sw, double swy, double sww, double tau, double sigma, rn& gen);
+std::vector<double> drawnodetheta(size_t n, double sy, double sw, double swy, double sww, double tau, double tau2, double sigma, rn& gen);
 //--------------------------------------------------
 // draw all the bottom node mu's
 void drtheta(tree<double>& t, xinfo& xi, dinfo& di, pinfo& pi, double sigma, rn& gen);
@@ -199,13 +199,13 @@ double drawnodetheta(size_t n, double sy, double tau, double sigma, rn& gen)
 }
 //--------------------------------------------------
 //draw two mu (linear) from post
-std::vector<double> drawnodetheta(size_t n, double sy, double sw, double swy, double sww, double tau, double sigma, rn& gen)
+std::vector<double> drawnodetheta(size_t n, double sy, double sw, double swy, double sww, double tau, double tau2, double sigma, rn& gen)
 {
   double t2 = tau*tau;
   double s2 = sigma*sigma;
   double inv_V00 = (double)n/s2 + 1./t2;
-double inv_V01 = sw/s2;
-  double inv_V11 = sww/s2 + 1./t2;
+  double inv_V01 = sw/s2;
+  double inv_V11 = sww/s2 + 1./(tau2*tau2);
   double det_invV = inv_V00*inv_V11-inv_V01*inv_V01;
   double V00 = (1./det_invV)*inv_V11;
   double V11 = (1./det_invV)*inv_V00;
@@ -249,7 +249,7 @@ void drtheta(tree<std::vector<double>>& t, xinfo& xi, dinfo& di, pinfo& pi, doub
   allsuff(t,xi,di,bnv,nv,syv,swv,swyv,swwv);
 
    for(tree<std::vector<double>>::npv::size_type i=0;i!=bnv.size();i++) 
-     bnv[i]->settheta(drawnodetheta(nv[i],syv[i],swv[i],swyv[i],swwv[i],pi.tau,sigma,gen));
+     bnv[i]->settheta(drawnodetheta(nv[i],syv[i],swv[i],swyv[i],swwv[i],pi.tau,pi.tau2,sigma,gen));
 }
 
 //--------------------------------------------------

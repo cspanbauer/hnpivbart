@@ -20,12 +20,14 @@ hetivbart = function(Z, T, Y, X=NULL,
                      Z.test=NULL,
                      T.test=NULL, 
                      X.test=NULL,
+                     type1=1,type2=1,
                      burn=1000, nd=2000, burnf1=1000, burnf2=1000,
                      keepevery=10,
                      Abeta=NA,
                      m1=200, m2=200, nc=100,
                      power=2, base=0.95,
-                     k=2, sigmaf1=NA, sigmaf2=NA,
+                     k1=2, k2=2,
+                     sigmaf1=NA, sigmaf2=NA,
                      doDP=TRUE, do.tsls=TRUE,
                      v=0.17, nu=2.004, a=0.016,
                      Imin=1, Imax=floor(0.1*n)+1, psi=0.5, gs=100,
@@ -46,8 +48,14 @@ hetivbart = function(Z, T, Y, X=NULL,
     rm(ZX.ls)
 
     ## Getting tau values (prior variance of terminal node value)
-    tau.ls <- get_tau(sigmaf1,sigmaf2,k,m1,m2,max(T)-min(T),max(Y)-min(Y))
-    tauf1 <- tau.ls[1]; tauf2 <- tau.ls[2]
+    if(type2==1){
+        tau.ls <- get_tau(sigmaf1,sigmaf2,k1,k2,m1,m2,max(T)-min(T),max(Y)-min(Y))
+        tauf1 <- tau.ls[1]; tauf22 <- tau.ls[2]; tauf21 <- tauf22/(max(Y)-min(Y))#(max(T)-min(T))
+    }
+    else{
+        tau.ls <- get_tau(sigmaf1,sigmaf2,k1,k2,m1,m2,max(T)-min(T),6)
+        tauf1 <- tau.ls[1]; tauf22 <- tau.ls[2]; tauf21 <- tauf22/6#(max(T)-min(T))
+    }
     rm(tau.ls)
     
     ## Get DPM priors
@@ -74,6 +82,12 @@ hetivbart = function(Z, T, Y, X=NULL,
     rm(starts.ls)
 
     include_output <- 0
+
+    ## Offset
+    if(type2==1)
+        offset=mean(Y)
+    else if(type2==2)
+        offset=qnorm(mean(Y))
     
     res = .Call("cbhetiv",
                 t(Z),
@@ -82,6 +96,8 @@ hetivbart = function(Z, T, Y, X=NULL,
                 t(X.test),
                 T,
                 Y,
+                type1,
+                type2,
                 burn,
                 nd,
                 keepevery,
@@ -90,11 +106,13 @@ hetivbart = function(Z, T, Y, X=NULL,
                 m1, m2, nc,
                 power, base,
                 tauf1,
-                tauf2,
+                tauf21,
+                tauf22,
                 doDP,
                 v, nu, a, #base prior
                 ag, priag, #alpha prior
                 centermeans,
+                offset,
                 include_output,
                 f1s, f2s,
                 mTs, mYs, sTs, gammas, sYs,
@@ -110,12 +128,12 @@ hetivbart = function(Z, T, Y, X=NULL,
         res$dsigma1 = res$dsigma1[thin, ]
         res$dsigma2 = res$dsigma2[thin, ]
         res$dcov = res$dcov[thin, ]
-        res$df1 = res$df1[thin, ]
-        res$df22 = res$df22[thin,]
-        res$df21 = res$df21[thin,]
-        res$df2 = res$df22+matrix(rep(T,each=nd),nrow=nd)*res$df1
         res$dLL = res$dLL[thin, ]
     }
+    res$df1 = res$df1[thin, ]
+    res$df22 = res$df22[thin,]
+    res$df21 = res$df21[thin,]
+    res$df2 = res$df22+matrix(rep(T,each=nd),nrow=nd)*res$df21
     if(NROW(Z.test)!=0){
         res$df1.test = res$df1.test[thin, ]
     }

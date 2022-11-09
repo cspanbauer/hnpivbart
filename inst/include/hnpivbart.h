@@ -12,6 +12,7 @@ using std::cout;
 #include <Rcpp.h>
 
 #include <bart_src/rn.h>
+#include <bart_src/rtnorm.h>
 #include <bart_src/tree.h>
 #include <bart_src/treefuns.h>
 #include <bart_src/info.h>
@@ -28,6 +29,10 @@ using std::cout;
 #include <bart_src/Dp.h>
 #include <bart_src/DpMuSigma.h>
 #include <bart_src/DpMuTau.h>
+//#include <bart_src/DpMuSigmaLKJ.h>
+
+#define LTPI 1.837877066409345483560659472811
+#define PI   3.141592653589793238462643383279
 
 double lreg(int n, double *x, double *y, double sigma, double betabar, double Abeta, rn& gen);
 
@@ -54,4 +59,12 @@ double bvnorm(double x, double y, double mux, double muy, double sigx, double si
   return -log(2.)-log(PI)-log(sigx)-log(sigy)-0.5*log(1-rho*rho)-(x-mux)*(x-mux)/(T1MR*sigx*sigx)+2*rho*(x-mux)*(y-muy)/(T1MR*sigx*sigy)-(y-muy)*(y-muy)/(T1MR*sigy*sigy);
 }
 
-#define LTPI 1.837877066409345483560659472811
+double log_rho_posterior(double r, double sumY1sq, double sumY2sq, double sumY1Y2, double s, double a, double b, size_t n){
+  return -0.5*((double)n)*(log(s*s)+log(1-r*r))-0.5*(sumY1sq/(s*s)-2*r*sumY1Y2/s+sumY2sq)/(1-r*r) + (a-1)*log(1+r) + (b-1)*log(1-r);
+}
+
+double log_sig_posterior(double s, double sumY1sq, double sumY2sq, double sumY1Y2, double r, double m, double v, size_t n){
+  return -0.5*((double)n)*(log(s*s)+log(1-r*r))-0.5*(sumY1sq/(s*s)-2*r*sumY1Y2/s+sumY2sq)/(1-r*r) - log(s)-(log(s)-m)*(log(s)-m)/(2.*v);
+}
+
+

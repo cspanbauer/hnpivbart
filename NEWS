@@ -1,3 +1,7 @@
 Changes and New Features in 1.0 (2022-04-14):
 
 	* First release on GitHub
+
+Changes and New Features in 1.1 (2022-09-09):
+
+    * Included probit outcomes, can be activated with option 'type2=2'

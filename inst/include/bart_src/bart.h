@@ -36,8 +36,8 @@ public:
   void setdata(size_t p,size_t n, double *x, double *y, size_t nc=100);
   void setdata(size_t p,size_t n, double *x, double *y, double *w, size_t nc=100);
   void setpi(pinfo& pi) {this->pi = pi;}
-  void setprior(double alpha, double beta, double tau) 
-  {pi.alpha=alpha; pi.mybeta = beta; pi.tau=tau;}
+  void setprior(double alpha, double beta, double tau, double tau2=1.0) 
+  {pi.alpha=alpha; pi.mybeta = beta; pi.tau=tau; pi.tau2=tau2;}
   void settau(double tau) {pi.tau=tau;}
   tree<T>& gettree(size_t i ) { return t[i];}
   xinfo& getxinfo() {return xi;}

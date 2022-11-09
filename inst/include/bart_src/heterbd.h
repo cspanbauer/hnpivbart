@@ -145,8 +145,8 @@ bool heterbd(tree<std::vector<double>>& x, xinfo& xi, dinfo& di, pinfo& pi, doub
       double uu = gen.uniform();
       bool dostep = (alpha > 0) && (log(uu) < lalpha);
       if(dostep) {
-        thetal = heterdrawnodetheta(srl,sryl,srwl,srwyl,srwwl,pi.tau,gen);
-        thetar = heterdrawnodetheta(srr,sryr,srwr,srwyr,srwwr,pi.tau,gen);
+        thetal = heterdrawnodetheta(srl,sryl,srwl,srwyl,srwwl,pi.tau,pi.tau2,gen);
+        thetar = heterdrawnodetheta(srr,sryr,srwr,srwyr,srwwr,pi.tau,pi.tau2,gen);
          x.birthp(nx,v,c,thetal,thetar);
          return true;
       } else {
@@ -180,7 +180,7 @@ bool heterbd(tree<std::vector<double>>& x, xinfo& xi, dinfo& di, pinfo& pi, doub
       //double a,b,s2,yb;
       std::vector<double> theta;
       if(log(gen.uniform()) < lalpha) {
-        theta = heterdrawnodetheta(srl+srr,sryl+sryr,srwl+srwr,srwyl+srwyr,srwwl+srwwr,pi.tau,gen);
+        theta = heterdrawnodetheta(srl+srr,sryl+sryr,srwl+srwr,srwyl+srwyr,srwwl+srwwr,pi.tau,pi.tau2,gen);
          x.deathp(nx,theta);
          return true;
       } else {

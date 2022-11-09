@@ -1,7 +1,7 @@
 Package: hnpivbart
 Type: Package
 Title: Nonparametric Instrumental Variables with BART and DPM
-Version: 1.0
+Version: 1.1
 Date: 2021-04-07
 Authors@R: c(person('Charles Spanbauer', role=c('aut','cre'), email='spanb008@umn.edu'),
   person('Robert', 'McCulloch', role=c('aut')),

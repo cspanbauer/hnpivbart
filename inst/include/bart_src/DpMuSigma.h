@@ -161,13 +161,13 @@ Dp::dv DpMuSigma::draw_one_theta(std::list<size_t>& ind, rn& gen)
    //printf("chol of Sigma 11,21,22: %lf, %lf %lf\n",LS11,LS21,LS22);
 
    //draw mu
-   //double Z1 = gen.normal();
-   //double Z2 = gen.normal();
-   //double drmu1 = LS11*Z1;
-   //double drmu2 = LS21*Z1 + LS22*Z2;
+   double Z1 = gen.normal();
+   double Z2 = gen.normal();
+   double drmu1 = LS11*Z1;
+   double drmu2 = LS21*Z1 + LS22*Z2;
    // Force mu to be 0
-   double drmu1 = 0.;//mu11 + sqrt(1/a1) * drmu1; 
-   double drmu2 = 0.;//mu21 + sqrt(1/a1) * drmu2;
+   drmu1 = mu11 + sqrt(1/a1) * drmu1; 
+   drmu2 = mu21 + sqrt(1/a1) * drmu2;
    //printf("drmu1, drmu2: %lf, %lf\n",drmu1,drmu2);
 
    //fill in rvtheta with draw
