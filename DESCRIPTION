@@ -1,0 +1,21 @@
+Package: hnpivbart
+Type: Package
+Title: Nonparametric Instrumental Variables with BART and DPM
+Version: 1.3
+Date: 2021-04-07
+Authors@R: c(person('Charles Spanbauer', role=c('aut','cre'), email='spanb008@umn.edu'),
+  person('Robert', 'McCulloch', role=c('aut')),
+  person('Rodney', 'Sparapani', role=c('aut')))
+Author: Charley Spanbauer [aut, cre],
+  Rodney Sparapani [aut],
+  Robert McCulloch [aut]
+Maintainer: Charles Spanbauer <spanb008@umn.edu>
+Description: A heterogenous Bayesian nonparametric instrumental variable approach that does not require precarious restrictive assumptions.  Bayesian nonparametrics provides non-parametric functions of the instruments and confounders via Bayesian Additive Regression Trees along with non-Normal errors by Dirichlet Process Mixtures. The treatment of interest is modelled either linearly or with a Gaussian process to allow the causal treatment effect to vary with covariates.
+License: GPL (>= 2)
+Depends: R (>= 3.6)
+Imports: Rcpp (>= 0.12.16)
+LinkingTo: Rcpp
+NeedsCompilation: yes
+Suggests: knitr
+VignetteBuilder: knitr
+Packaged: 2023-07-15 00:44:41 UTC; spanb008
